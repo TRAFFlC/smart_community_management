@@ -37,6 +37,7 @@
 #include <QMouseEvent>
 #include <QPropertyAnimation>
 #include <QGraphicsOpacityEffect>
+#include <QGraphicsDropShadowEffect>
 
 namespace {
 const char* TABLE_STYLE = R"(
@@ -44,15 +45,29 @@ const char* TABLE_STYLE = R"(
         background: #ffffff; border: none; border-radius: 8px;
         gridline-color: #f5f5f5; font-size: 13px;
     }
-    QTableWidget::item { padding: 8px 12px; border-bottom: 1px solid #f5f5f5; }
+    QTableWidget::item {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f5f5f5;
+    }
     QTableWidget::item:hover { background: #e6f4ff; }
     QHeaderView::section {
-        background: #fafafa; color: #8c8c8c; font-weight: 600;
-        padding: 10px 12px; border: none; border-bottom: 2px solid #f0f0f0;
-        font-size: 12px; text-transform: uppercase;
+        background: #fafafa; color: #595959; font-weight: 600;
+        padding: 10px 14px; border: none;
+        border-bottom: 2px solid #f0f0f0;
+        font-size: 12px;
     }
+    QHeaderView::section:hover { background: #f0f0f0; }
+    QHeaderView::section:pressed { background: #e6f4ff; }
     QTableWidget::item:selected { background: #e6f4ff; color: #1677ff; }
 )";
+
+void applyCardShadow(QWidget* card) {
+    auto* shadow = new QGraphicsDropShadowEffect(card);
+    shadow->setBlurRadius(12);
+    shadow->setColor(QColor(0, 0, 0, 20));
+    shadow->setOffset(0, 2);
+    card->setGraphicsEffect(shadow);
+}
 }
 
 
@@ -453,6 +468,7 @@ QWidget* MainWindow::createDashboardPage() {
         cl->addWidget(tl);
         cl->addWidget(vl);
         cl->addStretch();
+        applyCardShadow(card);
         return card;
     };
 
@@ -531,6 +547,7 @@ QWidget* MainWindow::createDashboardPage() {
         auto* desc = new QLabel(QStringLiteral("点击进入"));
         desc->setStyleSheet("font-size: 12px; color: #8c8c8c;");
         cardLayout->addWidget(desc);
+        applyCardShadow(card);
         quickGrid->addWidget(card, i / 3, i % 3);
         card->installEventFilter(this);
         card->setProperty("targetPage", actions[i].page);
@@ -630,7 +647,7 @@ QWidget* MainWindow::createDashboardPage() {
 
     auto* chartView = new QChartView(pieChart, chartCard);
     chartView->setRenderHint(QPainter::Antialiasing);
-    chartView->setFixedHeight(220);
+    chartView->setMinimumHeight(200);
     chartLayout->addWidget(chartView);
     rightCol->addWidget(chartCard);
 
@@ -654,18 +671,19 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
 
     auto* table = new QTableWidget(page);
     table->setAlternatingRowColors(true);
-    table->horizontalHeader()->setStretchLastSection(false);
+    table->horizontalHeader()->setStretchLastSection(true);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setStyleSheet(TABLE_STYLE);
     table->setShowGrid(false);
     table->verticalHeader()->setVisible(false);
+    table->setSortingEnabled(true);
 
     auto& db = DatabaseManager::instance();
 
     if (sub == "org") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -674,16 +692,28 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        auto* orgTypeCombo = new QComboBox(toolbar);
+        orgTypeCombo->addItem(QStringLiteral("全部类型"), -1);
+        orgTypeCombo->addItem(QStringLiteral("街道"), 2);
+        orgTypeCombo->addItem(QStringLiteral("社区"), 3);
+        orgTypeCombo->addItem(QStringLiteral("物业"), 4);
+        orgTypeCombo->addItem(QStringLiteral("业委会"), 5);
+        orgTypeCombo->addItem(QStringLiteral("志愿"), 7);
+        orgTypeCombo->addItem(QStringLiteral("社会"), 6);
+        orgTypeCombo->setMinimumWidth(120);
+        tbLayout->addWidget(orgTypeCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         table->setColumnCount(4);
         table->setHorizontalHeaderLabels({QStringLiteral("组织名称"), QStringLiteral("类型"), QStringLiteral("负责人"), QStringLiteral("电话")});
-        std::function<void()> loadOrgs = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadOrgs = [table, searchEdit, orgTypeCombo]() {
+            table->setRowCount(0);
             QString sql = "SELECT org_name, org_type, leader, phone FROM sys_org WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
+            int typeFilter = orgTypeCombo->currentData().toInt();
             if (!searchText.isEmpty()) sql += " AND org_name LIKE '%" + searchText + "%'";
+            if (typeFilter >= 0) sql += " AND org_type = " + QString::number(typeFilter);
             sql += " ORDER BY sort_order";
             QSqlQuery q(sql);
             int row = 0;
@@ -698,10 +728,11 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         };
         loadOrgs();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadOrgs(); });
+        connect(orgTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadOrgs(); });
     } else if (sub == "estate") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -710,16 +741,24 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        auto* estateStatusCombo = new QComboBox(toolbar);
+        estateStatusCombo->addItem(QStringLiteral("全部状态"), -1);
+        estateStatusCombo->addItem(QStringLiteral("正常"), 0);
+        estateStatusCombo->addItem(QStringLiteral("停用"), 1);
+        estateStatusCombo->setMinimumWidth(120);
+        tbLayout->addWidget(estateStatusCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         table->setColumnCount(5);
         table->setHorizontalHeaderLabels({QStringLiteral("小区名称"), QStringLiteral("编码"), QStringLiteral("地址"), QStringLiteral("楼栋数"), QStringLiteral("总户数")});
-        std::function<void()> loadEstates = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadEstates = [table, searchEdit, estateStatusCombo]() {
+            table->setRowCount(0);
             QString sql = "SELECT estate_name, estate_code, address, total_buildings, total_houses FROM cm_estate WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
+            int statusFilter = estateStatusCombo->currentData().toInt();
             if (!searchText.isEmpty()) sql += " AND (estate_name LIKE '%" + searchText + "%' OR estate_code LIKE '%" + searchText + "%')";
+            if (statusFilter >= 0) sql += " AND status = " + QString::number(statusFilter);
             QSqlQuery q(sql);
             int row = 0;
             while (q.next()) {
@@ -734,10 +773,11 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         };
         loadEstates();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadEstates(); });
+        connect(estateStatusCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadEstates(); });
     } else if (sub == "house") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -760,7 +800,7 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         table->setColumnCount(6);
         table->setHorizontalHeaderLabels({QStringLiteral("房屋编号"), QStringLiteral("楼层"), QStringLiteral("房号"), QStringLiteral("面积"), QStringLiteral("户型"), QStringLiteral("状态")});
         std::function<void()> loadHouses = [table, searchEdit, statusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT house_code, floor, room_number, area, house_type, house_status FROM cm_house WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int statusFilter = statusCombo->currentData().toInt();
@@ -802,7 +842,7 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
     } else if (sub == "resident") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -811,16 +851,24 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        auto* genderCombo = new QComboBox(toolbar);
+        genderCombo->addItem(QStringLiteral("全部性别"), -1);
+        genderCombo->addItem(QStringLiteral("男"), 1);
+        genderCombo->addItem(QStringLiteral("女"), 0);
+        genderCombo->setMinimumWidth(120);
+        tbLayout->addWidget(genderCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         table->setColumnCount(5);
         table->setHorizontalHeaderLabels({QStringLiteral("姓名"), QStringLiteral("性别"), QStringLiteral("手机号"), QStringLiteral("民族"), QStringLiteral("职业")});
-        std::function<void()> loadResidents = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadResidents = [table, searchEdit, genderCombo]() {
+            table->setRowCount(0);
             QString sql = "SELECT name, gender, phone_display, nationality, occupation FROM cm_resident WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
+            int genderFilter = genderCombo->currentData().toInt();
             if (!searchText.isEmpty()) sql += " AND (name LIKE '%" + searchText + "%' OR phone_display LIKE '%" + searchText + "%')";
+            if (genderFilter >= 0) sql += " AND gender = " + QString::number(genderFilter);
             QSqlQuery q(sql);
             int row = 0;
             while (q.next()) {
@@ -835,10 +883,11 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         };
         loadResidents();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadResidents(); });
+        connect(genderCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadResidents(); });
     } else if (sub == "vehicle") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -861,7 +910,7 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         table->setColumnCount(4);
         table->setHorizontalHeaderLabels({QStringLiteral("车牌号"), QStringLiteral("品牌"), QStringLiteral("颜色"), QStringLiteral("类型")});
         std::function<void()> loadVehicles = [table, searchEdit, typeCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT plate_number, vehicle_brand, vehicle_color, vehicle_type FROM cm_vehicle WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int typeFilter = typeCombo->currentData().toInt();
@@ -884,7 +933,7 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
     } else if (sub == "facility") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -893,16 +942,27 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        auto* facTypeCombo = new QComboBox(toolbar);
+        facTypeCombo->addItem(QStringLiteral("全部类型"), -1);
+        facTypeCombo->addItem(QStringLiteral("电梯"), 1);
+        facTypeCombo->addItem(QStringLiteral("消防"), 2);
+        facTypeCombo->addItem(QStringLiteral("监控"), 3);
+        facTypeCombo->addItem(QStringLiteral("门禁"), 4);
+        facTypeCombo->addItem(QStringLiteral("照明"), 5);
+        facTypeCombo->setMinimumWidth(120);
+        tbLayout->addWidget(facTypeCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         table->setColumnCount(5);
         table->setHorizontalHeaderLabels({QStringLiteral("设施名称"), QStringLiteral("类型"), QStringLiteral("编号"), QStringLiteral("位置"), QStringLiteral("状态")});
-        std::function<void()> loadFacilities = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadFacilities = [table, searchEdit, facTypeCombo]() {
+            table->setRowCount(0);
             QString sql = "SELECT facility_name, facility_type, facility_code, location, status FROM cm_facility WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
+            int typeFilter = facTypeCombo->currentData().toInt();
             if (!searchText.isEmpty()) sql += " AND (facility_name LIKE '%" + searchText + "%' OR facility_code LIKE '%" + searchText + "%')";
+            if (typeFilter >= 0) sql += " AND facility_type = " + QString::number(typeFilter);
             QSqlQuery q(sql);
             int row = 0;
             while (q.next()) {
@@ -927,10 +987,11 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         };
         loadFacilities();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadFacilities(); });
+        connect(facTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadFacilities(); });
     } else if (sub == "grid") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -939,16 +1000,24 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        auto* gridStatusCombo = new QComboBox(toolbar);
+        gridStatusCombo->addItem(QStringLiteral("全部状态"), -1);
+        gridStatusCombo->addItem(QStringLiteral("正常"), 0);
+        gridStatusCombo->addItem(QStringLiteral("停用"), 1);
+        gridStatusCombo->setMinimumWidth(120);
+        tbLayout->addWidget(gridStatusCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         table->setColumnCount(4);
         table->setHorizontalHeaderLabels({QStringLiteral("网格名称"), QStringLiteral("编码"), QStringLiteral("描述"), QStringLiteral("网格员")});
-        std::function<void()> loadGrids = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadGrids = [table, searchEdit, gridStatusCombo]() {
+            table->setRowCount(0);
             QString sql = "SELECT g.grid_name, g.grid_code, g.description, u.real_name FROM cm_grid g LEFT JOIN sys_user u ON g.grid_worker_id = u.id WHERE g.del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
+            int statusFilter = gridStatusCombo->currentData().toInt();
             if (!searchText.isEmpty()) sql += " AND (g.grid_name LIKE '%" + searchText + "%' OR g.grid_code LIKE '%" + searchText + "%')";
+            if (statusFilter >= 0) sql += " AND g.status = " + QString::number(statusFilter);
             QSqlQuery q(sql);
             int row = 0;
             while (q.next()) {
@@ -962,10 +1031,11 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         };
         loadGrids();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadGrids(); });
+        connect(gridStatusCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadGrids(); });
     } else if (sub == "special") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -974,16 +1044,26 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        auto* groupTypeCombo = new QComboBox(toolbar);
+        groupTypeCombo->addItem(QStringLiteral("全部类型"), -1);
+        groupTypeCombo->addItem(QStringLiteral("独居老人"), 1);
+        groupTypeCombo->addItem(QStringLiteral("残疾人"), 2);
+        groupTypeCombo->addItem(QStringLiteral("低保户"), 3);
+        groupTypeCombo->addItem(QStringLiteral("留守儿童"), 4);
+        groupTypeCombo->setMinimumWidth(120);
+        tbLayout->addWidget(groupTypeCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         table->setColumnCount(4);
         table->setHorizontalHeaderLabels({QStringLiteral("居民"), QStringLiteral("类型"), QStringLiteral("关怀等级"), QStringLiteral("走访频率")});
-        std::function<void()> loadSpecials = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadSpecials = [table, searchEdit, groupTypeCombo]() {
+            table->setRowCount(0);
             QString sql = "SELECT r.name, sg.group_type, sg.care_level, sg.care_frequency FROM cm_special_group sg JOIN cm_resident r ON sg.resident_id = r.id WHERE sg.del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
+            int typeFilter = groupTypeCombo->currentData().toInt();
             if (!searchText.isEmpty()) sql += " AND r.name LIKE '%" + searchText + "%'";
+            if (typeFilter >= 0) sql += " AND sg.group_type = " + QString::number(typeFilter);
             QSqlQuery q(sql);
             int row = 0;
             while (q.next()) {
@@ -997,6 +1077,7 @@ QWidget* MainWindow::createArchivePage(const QString& sub) {
         };
         loadSpecials();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadSpecials(); });
+        connect(groupTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadSpecials(); });
     }
 
     layout->addWidget(table);
@@ -1015,6 +1096,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
     table->setStyleSheet(TABLE_STYLE);
     table->setShowGrid(false);
     table->verticalHeader()->setVisible(false);
+    table->setSortingEnabled(true);
 
     auto& db = DatabaseManager::instance();
 
@@ -1039,7 +1121,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         tbLayout->addWidget(searchEdit);
 
         auto* filterCombo = new QComboBox(toolbar);
-        filterCombo->addItems({QStringLiteral("全部状态"), QStringLiteral("待受理"), QStringLiteral("已受理"), QStringLiteral("处理中"), QStringLiteral("已完成"), QStringLiteral("已关闭")});
+        filterCombo->addItems({QStringLiteral("全部状态"), QStringLiteral("待受理"), QStringLiteral("已受理"), QStringLiteral("已派单"), QStringLiteral("处理中"), QStringLiteral("已完成"), QStringLiteral("已关闭"), QStringLiteral("已评价")});
         filterCombo->setFixedWidth(130);
         tbLayout->addWidget(filterCombo);
         tbLayout->addStretch();
@@ -1055,10 +1137,10 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         table->setHorizontalHeaderLabels({QStringLiteral("工单号"), QStringLiteral("标题"), QStringLiteral("类型"), QStringLiteral("优先级"), QStringLiteral("状态"), QStringLiteral("报修人"), QStringLiteral("创建时间"), QStringLiteral("操作")});
         table->setColumnWidth(1, 180);
         table->setColumnWidth(7, 100);
-        table->horizontalHeader()->setStretchLastSection(false);
+        table->horizontalHeader()->setStretchLastSection(true);
 
         std::function<void()> loadWorkOrders = [table, searchEdit, filterCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT id, order_no, title, order_type, priority, status, reporter_name, create_time FROM wo_work_order WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int filterIdx = filterCombo->currentIndex();
@@ -1075,7 +1157,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
                 q.bindValue(":search", "%" + searchText + "%");
             }
             if (filterIdx > 0) {
-                int statusMap[] = {0, 0, 1, 3, 4, 5};
+                int statusMap[] = {0, 0, 1, 2, 3, 4, 5, 6};
                 q.bindValue(":status", statusMap[filterIdx]);
             }
             q.exec();
@@ -1237,7 +1319,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         typeCombo->setMinimumWidth(120);
         tbLayout->addWidget(typeCombo);
         auto* filterCombo = new QComboBox(toolbar);
-        filterCombo->addItems({QStringLiteral("全部状态"), QStringLiteral("待处理"), QStringLiteral("已受理"), QStringLiteral("处理中"), QStringLiteral("已完成"), QStringLiteral("已评价")});
+        filterCombo->addItems({QStringLiteral("全部状态"), QStringLiteral("待受理"), QStringLiteral("已受理"), QStringLiteral("已派单"), QStringLiteral("处理中"), QStringLiteral("已完成"), QStringLiteral("已关闭"), QStringLiteral("已评价")});
         filterCombo->setMinimumWidth(120);
         tbLayout->addWidget(filterCombo);
         tbLayout->addStretch();
@@ -1251,7 +1333,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         table->setHorizontalHeaderLabels({QStringLiteral("编号"), QStringLiteral("标题"), QStringLiteral("类型"), QStringLiteral("投诉人"), QStringLiteral("时间"), QStringLiteral("状态"), QStringLiteral("操作")});
         table->setColumnWidth(1, 200);
         table->setColumnWidth(6, 80);
-        table->horizontalHeader()->setStretchLastSection(false);
+        table->horizontalHeader()->setStretchLastSection(true);
 
         connect(table, &QTableWidget::cellClicked, this, [=](int r, int c) {
             if (c != 6) return;
@@ -1270,7 +1352,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         });
 
         std::function<void()> loadComplaints = [table, searchEdit, typeCombo, filterCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT id, order_no, title, order_type, reporter_name, create_time, status FROM wo_work_order WHERE del_flag = 0 AND source = 2";
             QString searchText = searchEdit->text().trimmed();
             int filterType = typeCombo->currentData().toInt();
@@ -1278,7 +1360,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
             if (!searchText.isEmpty()) sql += " AND (order_no LIKE '%" + searchText + "%' OR title LIKE '%" + searchText + "%')";
             if (filterType >= 0) sql += " AND order_type = " + QString::number(filterType);
             if (filterIdx > 0) {
-                int statusMap[] = {0, 0, 1, 3, 4, 5};
+                int statusMap[] = {0, 0, 1, 2, 3, 4, 5, 6};
                 sql += " AND status = " + QString::number(statusMap[filterIdx]);
             }
             sql += " ORDER BY create_time DESC";
@@ -1360,7 +1442,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
 
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -1381,7 +1463,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         table->setColumnCount(5);
         table->setHorizontalHeaderLabels({QStringLiteral("巡检员"), QStringLiteral("开始时间"), QStringLiteral("时长(分)"), QStringLiteral("发现问题"), QStringLiteral("状态")});
         std::function<void()> loadInspections = [table, searchEdit, statusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT u.real_name, i.start_time, i.duration, i.issue_count, i.status FROM ge_inspection i LEFT JOIN sys_user u ON i.inspector_id = u.id WHERE i.del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int statusFilter = statusCombo->currentData().toInt();
@@ -1447,7 +1529,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         table->setHorizontalHeaderLabels({QStringLiteral("标题"), QStringLiteral("类型"), QStringLiteral("发布人"), QStringLiteral("发布时间"), QStringLiteral("阅读数"), QStringLiteral("操作")});
         table->setColumnWidth(0, 250);
         table->setColumnWidth(5, 80);
-        table->horizontalHeader()->setStretchLastSection(false);
+        table->horizontalHeader()->setStretchLastSection(true);
 
         connect(table, &QTableWidget::cellClicked, this, [=](int r, int c) {
             if (c != 5) return;
@@ -1467,7 +1549,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         });
 
         std::function<void()> loadAnnouncements = [table, searchEdit, typeCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT id, title, announcement_type, publisher_id, publish_time, read_count FROM nt_announcement WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int filterType = typeCombo->currentData().toInt();
@@ -1572,6 +1654,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
             auto* tl = new QLabel(label); tl->setStyleSheet("color:#8c8c8c;font-size:12px;");
             auto* vl = new QLabel(val); vl->setStyleSheet(QString("color:%1;font-size:26px;font-weight:bold;").arg(color));
             cl->addWidget(indicator); cl->addWidget(tl); cl->addWidget(vl);
+            applyCardShadow(card);
             return card;
         };
         QSqlQuery todayVisQ("SELECT COUNT(*) FROM cm_visitor WHERE date(arrive_time) = date('now') AND del_flag = 0"); int todayVis = todayVisQ.next() ? todayVisQ.value(0).toInt() : 0;
@@ -1605,7 +1688,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         table->setHorizontalHeaderLabels({QStringLiteral("访客姓名"), QStringLiteral("手机号"), QStringLiteral("拜访业主"), QStringLiteral("来访时间"), QStringLiteral("离开时间"), QStringLiteral("状态")});
 
         std::function<void()> loadVisitors = [table, visSearchEdit, visStatusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT visitor_name, phone, host_name, arrive_time, leave_time, status FROM cm_visitor WHERE del_flag = 0";
             QString visSearch = visSearchEdit->text().trimmed();
             int visFilter = visStatusCombo->currentData().toInt();
@@ -1644,7 +1727,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
 
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -1667,7 +1750,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         table->setHorizontalHeaderLabels({QStringLiteral("议题标题"), QStringLiteral("类型"), QStringLiteral("发起人"), QStringLiteral("截止日期"), QStringLiteral("投票结果"), QStringLiteral("状态")});
         table->setColumnWidth(0, 220);
         std::function<void()> loadTopics = [table, searchEdit, statusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT t.id, t.title, t.topic_type, t.vote_end, t.status, "
                 "(SELECT COUNT(*) FROM oc_vote v WHERE v.topic_id = t.id AND v.choice = 1) as approve_cnt, "
                 "(SELECT COUNT(*) FROM oc_vote v WHERE v.topic_id = t.id AND v.choice = 2) as oppose_cnt, "
@@ -1734,6 +1817,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
             auto* tl = new QLabel(label); tl->setStyleSheet("color:#8c8c8c;font-size:12px;");
             auto* vl = new QLabel(val); vl->setStyleSheet(QString("color:%1;font-size:26px;font-weight:bold;").arg(color));
             cl->addWidget(indicator); cl->addWidget(tl); cl->addWidget(vl);
+            applyCardShadow(card);
             return card;
         };
         QSqlQuery spaceQ("SELECT COUNT(*) FROM cm_parking_space WHERE del_flag = 0");
@@ -1758,7 +1842,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         auto* spaceLayout = new QVBoxLayout(spacePage);
         // Space search toolbar
         auto* spaceToolbar = new QWidget(spacePage);
-        spaceToolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        spaceToolbar->setStyleSheet("background:transparent;");
         auto* spaceTbLayout = new QHBoxLayout(spaceToolbar);
         spaceTbLayout->setContentsMargins(0, 0, 0, 8);
         spaceTbLayout->setSpacing(10);
@@ -1778,15 +1862,16 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
 
         auto* spaceTable = new QTableWidget(spacePage);
         spaceTable->setAlternatingRowColors(true);
-        spaceTable->horizontalHeader()->setStretchLastSection(false);
+        spaceTable->horizontalHeader()->setStretchLastSection(true);
         spaceTable->setSelectionBehavior(QAbstractItemView::SelectRows);
         spaceTable->setStyleSheet(TABLE_STYLE);
         spaceTable->setShowGrid(false);
         spaceTable->verticalHeader()->setVisible(false);
+        spaceTable->setSortingEnabled(true);
         spaceTable->setColumnCount(5);
         spaceTable->setHorizontalHeaderLabels({QStringLiteral("车位编号"), QStringLiteral("区域"), QStringLiteral("类型"), QStringLiteral("关联车辆"), QStringLiteral("状态")});
         std::function<void()> loadSpaces = [spaceTable, spaceSearchEdit, spaceStatusCombo]() {
-            while (spaceTable->rowCount() > 0) spaceTable->removeRow(0);
+            spaceTable->setRowCount(0);
             QString sql = "SELECT ps.space_code, ps.area_name, ps.space_type, v.plate_number, ps.status FROM cm_parking_space ps LEFT JOIN cm_vehicle v ON v.parking_space_id = ps.id WHERE ps.del_flag = 0";
             QString searchText = spaceSearchEdit->text().trimmed();
             int statusFilter = spaceStatusCombo->currentData().toInt();
@@ -1820,7 +1905,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         auto* cardLayout = new QVBoxLayout(cardPage);
         // Card search toolbar
         auto* cardToolbar = new QWidget(cardPage);
-        cardToolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        cardToolbar->setStyleSheet("background:transparent;");
         auto* cardTbLayout = new QHBoxLayout(cardToolbar);
         cardTbLayout->setContentsMargins(0, 0, 0, 8);
         cardTbLayout->setSpacing(10);
@@ -1833,7 +1918,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         cardStatusCombo->addItem(QStringLiteral("全部状态"), -1);
         cardStatusCombo->addItem(QStringLiteral("有效"), 1);
         cardStatusCombo->addItem(QStringLiteral("待续费"), 2);
-        cardStatusCombo->addItem(QStringLiteral("已过期"), 3);
+        cardStatusCombo->addItem(QStringLiteral("已过期"), 0);
         cardStatusCombo->setMinimumWidth(120);
         cardTbLayout->addWidget(cardStatusCombo);
         cardTbLayout->addStretch();
@@ -1841,15 +1926,16 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
 
         auto* cardTable = new QTableWidget(cardPage);
         cardTable->setAlternatingRowColors(true);
-        cardTable->horizontalHeader()->setStretchLastSection(false);
+        cardTable->horizontalHeader()->setStretchLastSection(true);
         cardTable->setSelectionBehavior(QAbstractItemView::SelectRows);
         cardTable->setStyleSheet(TABLE_STYLE);
         cardTable->setShowGrid(false);
         cardTable->verticalHeader()->setVisible(false);
+        cardTable->setSortingEnabled(true);
         cardTable->setColumnCount(5);
         cardTable->setHorizontalHeaderLabels({QStringLiteral("车牌号"), QStringLiteral("车主"), QStringLiteral("车位"), QStringLiteral("有效期"), QStringLiteral("状态")});
         std::function<void()> loadCards = [cardTable, cardSearchEdit, cardStatusCombo]() {
-            while (cardTable->rowCount() > 0) cardTable->removeRow(0);
+            cardTable->setRowCount(0);
             QString sql = "SELECT mc.plate_no, mc.owner_name, ps.space_code, mc.start_date, mc.end_date, mc.status "
                 "FROM pm_monthly_card mc LEFT JOIN cm_parking_space ps ON mc.space_id = ps.id "
                 "WHERE mc.del_flag = 0";
@@ -1904,16 +1990,18 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
             auto* tl = new QLabel(label); tl->setStyleSheet("color:#8c8c8c;font-size:12px;");
             auto* vl = new QLabel(val); vl->setStyleSheet(QString("color:%1;font-size:26px;font-weight:bold;").arg(color));
             cl->addWidget(indicator); cl->addWidget(tl); cl->addWidget(vl);
+            applyCardShadow(card);
             return card;
         };
         QSqlQuery billTotalQ("SELECT COALESCE(SUM(amount),0) FROM pm_bill WHERE period = strftime('%Y-%m','now') AND del_flag = 0"); double billTotal = billTotalQ.next() ? billTotalQ.value(0).toDouble() : 0;
         QSqlQuery billPaidQ("SELECT COALESCE(SUM(amount),0) FROM pm_bill WHERE period = strftime('%Y-%m','now') AND status = 1 AND del_flag = 0"); double billPaid = billPaidQ.next() ? billPaidQ.value(0).toDouble() : 0;
         double billUnpaid = billTotal - billPaid;
         int billRate = billTotal > 0 ? qRound(billPaid / billTotal * 100) : 0;
-        statsRow->addWidget(mkCard2(QStringLiteral("本月应收"), QString("¥%1").arg(billTotal, 0, 'f', 0), "#1677ff", page));
-        statsRow->addWidget(mkCard2(QStringLiteral("已缴金额"), QString("¥%1").arg(billPaid, 0, 'f', 0), "#52c41a", page));
-        statsRow->addWidget(mkCard2(QStringLiteral("未缴金额"), QString("¥%1").arg(billUnpaid, 0, 'f', 0), "#ff4d4f", page));
-        statsRow->addWidget(mkCard2(QStringLiteral("缴费率"), QString::number(billRate) + "%", "#fa8c16", page));
+        QString curMonth = QDate::currentDate().toString("M月");
+        statsRow->addWidget(mkCard2(QStringLiteral("本月应收(%1)").arg(curMonth), QString("¥%1").arg(billTotal, 0, 'f', 0), "#1677ff", page));
+        statsRow->addWidget(mkCard2(QStringLiteral("本月已缴(%1)").arg(curMonth), QString("¥%1").arg(billPaid, 0, 'f', 0), "#52c41a", page));
+        statsRow->addWidget(mkCard2(QStringLiteral("本月未缴(%1)").arg(curMonth), QString("¥%1").arg(billUnpaid, 0, 'f', 0), "#ff4d4f", page));
+        statsRow->addWidget(mkCard2(QStringLiteral("本月缴费率(%1)").arg(curMonth), QString::number(billRate) + "%", "#fa8c16", page));
         statsRow->addStretch();
         layout->addLayout(statsRow);
         layout->addSpacing(12);
@@ -1942,6 +2030,18 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         billStatusCombo->addItem(QStringLiteral("逾期"), 2);
         billStatusCombo->setMinimumWidth(120);
         billToolbar->addWidget(billStatusCombo);
+        // Month filter
+        auto* billPeriodCombo = new QComboBox();
+        billPeriodCombo->addItem(QStringLiteral("全部月份"), "");
+        billPeriodCombo->addItem(QStringLiteral("本月"), QDate::currentDate().toString("yyyy-MM"));
+        QSqlQuery periodQ("SELECT DISTINCT period FROM pm_bill WHERE del_flag = 0 ORDER BY period DESC");
+        while (periodQ.next()) {
+            QString p = periodQ.value(0).toString();
+            if (p != QDate::currentDate().toString("yyyy-MM"))
+                billPeriodCombo->addItem(p, p);
+        }
+        billPeriodCombo->setMinimumWidth(120);
+        billToolbar->addWidget(billPeriodCombo);
         billToolbar->addStretch();
         layout->insertLayout(layout->count() - 1, billToolbar);
 
@@ -1949,8 +2049,9 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         table->setHorizontalHeaderLabels({QStringLiteral("账单编号"), QStringLiteral("房屋"), QStringLiteral("费用类型"), QStringLiteral("金额"), QStringLiteral("账期"), QStringLiteral("状态")});
         table->setColumnWidth(0, 120);
 
-        std::function<void()> loadBills = [table, billSearchEdit, billTypeCombo, billStatusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadBills = [table, billSearchEdit, billTypeCombo, billStatusCombo, billPeriodCombo]() {
+            table->setSortingEnabled(false);
+            table->setRowCount(0);
             QString sql = "SELECT b.bill_no, h.house_code || '-' || h.room_number AS house_info, "
                 "CASE b.bill_type WHEN 1 THEN '物业费' WHEN 2 THEN '水费' WHEN 3 THEN '电费' WHEN 4 THEN '停车费' WHEN 5 THEN '综合' END AS type_name, "
                 "b.amount, b.period, b.status "
@@ -1962,6 +2063,8 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
             if (!billSearch.isEmpty()) sql += " AND (b.bill_no LIKE '%" + billSearch + "%' OR h.house_code LIKE '%" + billSearch + "%' OR h.room_number LIKE '%" + billSearch + "%')";
             if (billTypeFilter >= 0) sql += " AND b.bill_type = " + QString::number(billTypeFilter);
             if (billStatusFilter >= 0) sql += " AND b.status = " + QString::number(billStatusFilter);
+            QString periodFilter = billPeriodCombo->currentData().toString();
+            if (!periodFilter.isEmpty()) sql += " AND b.period = '" + periodFilter + "'";
             sql += " ORDER BY b.period DESC, b.create_time DESC";
             QSqlQuery billQ(sql);
             int bRow = 0;
@@ -1970,7 +2073,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
             table->setItem(bRow, 0, new QTableWidgetItem(billQ.value(0).toString()));
             table->setItem(bRow, 1, new QTableWidgetItem(billQ.value(1).toString()));
             table->setItem(bRow, 2, new QTableWidgetItem(billQ.value(2).toString()));
-            table->setItem(bRow, 3, new QTableWidgetItem(QString("¥%1").arg(billQ.value(3).toDouble(), 0, 'f', 2)));
+            table->setItem(bRow, 3, new NumericSortTableWidgetItem(QString("¥%1").arg(billQ.value(3).toDouble(), 0, 'f', 2)));
             table->setItem(bRow, 4, new QTableWidgetItem(billQ.value(4).toString()));
             int bSts = billQ.value(5).toInt();
             auto* stsItem = new QTableWidgetItem(bSts == 1 ? QStringLiteral("已缴费") : bSts == 2 ? QStringLiteral("逾期") : QStringLiteral("待缴费"));
@@ -1980,11 +2083,13 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
             table->setItem(bRow, 5, stsItem);
             bRow++;
         }
+            table->setSortingEnabled(true);
         };
         loadBills();
         connect(billSearchEdit, &QLineEdit::textChanged, this, [=]() { loadBills(); });
         connect(billTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadBills(); });
         connect(billStatusCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadBills(); });
+        connect(billPeriodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadBills(); });
     } else if (sub == "income") {
         // T36 公共收益公示
         auto* header = new QLabel(QStringLiteral("公共收益公示"), page);
@@ -1996,7 +2101,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
 
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -2017,7 +2122,7 @@ QWidget* MainWindow::createPropertyPage(const QString& sub) {
         table->setColumnCount(6);
         table->setHorizontalHeaderLabels({QStringLiteral("账期"), QStringLiteral("收入金额"), QStringLiteral("支出金额"), QStringLiteral("结余"), QStringLiteral("公示时间"), QStringLiteral("状态")});
         std::function<void()> loadIncomes = [table, searchEdit, statusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT period, income_amount, expense_amount, balance, publish_time, status FROM oc_public_income WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int statusFilter = statusCombo->currentData().toInt();
@@ -2064,6 +2169,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
     table->setStyleSheet(TABLE_STYLE);
     table->setShowGrid(false);
     table->verticalHeader()->setVisible(false);
+    table->setSortingEnabled(true);
 
     auto& db = DatabaseManager::instance();
 
@@ -2101,10 +2207,10 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         table->setHorizontalHeaderLabels({QStringLiteral("事件号"), QStringLiteral("标题"), QStringLiteral("类别"), QStringLiteral("优先级"), QStringLiteral("状态"), QStringLiteral("上报人"), QStringLiteral("创建时间"), QStringLiteral("操作")});
         table->setColumnWidth(1, 180);
         table->setColumnWidth(7, 100);
-        table->horizontalHeader()->setStretchLastSection(false);
+        table->horizontalHeader()->setStretchLastSection(true);
 
         std::function<void()> loadEvents = [table, searchEdit, filterCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT id, event_no, title, event_category, priority, status, reporter_name, create_time FROM ge_event WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int filterIdx = filterCombo->currentIndex();
@@ -2263,7 +2369,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         auto* planLayout = new QVBoxLayout(planPage);
         // Plan search toolbar
         auto* planToolbar = new QWidget(planPage);
-        planToolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        planToolbar->setStyleSheet("background:transparent;");
         auto* planTbLayout = new QHBoxLayout(planToolbar);
         planTbLayout->setContentsMargins(0, 0, 0, 8);
         planTbLayout->setSpacing(10);
@@ -2272,23 +2378,33 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         planSearchEdit->setMinimumWidth(200);
         planSearchEdit->setClearButtonEnabled(true);
         planTbLayout->addWidget(planSearchEdit);
+        auto* planStatusCombo = new QComboBox(planToolbar);
+        planStatusCombo->addItem(QStringLiteral("全部状态"), -1);
+        planStatusCombo->addItem(QStringLiteral("待执行"), 0);
+        planStatusCombo->addItem(QStringLiteral("进行中"), 1);
+        planStatusCombo->addItem(QStringLiteral("已完成"), 2);
+        planStatusCombo->setMinimumWidth(120);
+        planTbLayout->addWidget(planStatusCombo);
         planTbLayout->addStretch();
         planLayout->addWidget(planToolbar);
 
         auto* planTable = new QTableWidget(planPage);
         planTable->setAlternatingRowColors(true);
-        planTable->horizontalHeader()->setStretchLastSection(false);
+        planTable->horizontalHeader()->setStretchLastSection(true);
         planTable->setSelectionBehavior(QAbstractItemView::SelectRows);
         planTable->setStyleSheet(TABLE_STYLE);
         planTable->setShowGrid(false);
         planTable->verticalHeader()->setVisible(false);
+        planTable->setSortingEnabled(true);
         planTable->setColumnCount(6);
         planTable->setHorizontalHeaderLabels({QStringLiteral("计划名称"), QStringLiteral("网格"), QStringLiteral("频率"), QStringLiteral("巡查员"), QStringLiteral("起止日期"), QStringLiteral("状态")});
-        std::function<void()> loadPlans = [planTable, planSearchEdit]() {
-            while (planTable->rowCount() > 0) planTable->removeRow(0);
+        std::function<void()> loadPlans = [planTable, planSearchEdit, planStatusCombo]() {
+            planTable->setRowCount(0);
             QString sql = "SELECT ip.plan_name, g.grid_name, ip.frequency, u.real_name, ip.start_date || '~' || ip.end_date, ip.status FROM ge_inspection_plan ip LEFT JOIN cm_grid g ON ip.grid_id = g.id LEFT JOIN sys_user u ON ip.inspector_id = u.id WHERE ip.del_flag = 0";
             QString searchText = planSearchEdit->text().trimmed();
+            int planStsFilter = planStatusCombo->currentData().toInt();
             if (!searchText.isEmpty()) sql += " AND (ip.plan_name LIKE '%" + searchText + "%' OR u.real_name LIKE '%" + searchText + "%')";
+            if (planStsFilter >= 0) sql += " AND ip.status = " + QString::number(planStsFilter);
             sql += " ORDER BY ip.create_time DESC";
             QSqlQuery planQ(sql);
             int pRow = 0;
@@ -2314,6 +2430,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         };
         loadPlans();
         connect(planSearchEdit, &QLineEdit::textChanged, this, [=]() { loadPlans(); });
+        connect(planStatusCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadPlans(); });
         planLayout->addWidget(planTable);
         tabWidget->addTab(planPage, QStringLiteral("巡查计划"));
 
@@ -2322,7 +2439,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         auto* recordLayout = new QVBoxLayout(recordPage);
         // Record search toolbar
         auto* recToolbar = new QWidget(recordPage);
-        recToolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        recToolbar->setStyleSheet("background:transparent;");
         auto* recTbLayout = new QHBoxLayout(recToolbar);
         recTbLayout->setContentsMargins(0, 0, 0, 8);
         recTbLayout->setSpacing(10);
@@ -2342,15 +2459,16 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
 
         auto* recTable = new QTableWidget(recordPage);
         recTable->setAlternatingRowColors(true);
-        recTable->horizontalHeader()->setStretchLastSection(false);
+        recTable->horizontalHeader()->setStretchLastSection(true);
         recTable->setSelectionBehavior(QAbstractItemView::SelectRows);
         recTable->setStyleSheet(TABLE_STYLE);
         recTable->setShowGrid(false);
         recTable->verticalHeader()->setVisible(false);
+        recTable->setSortingEnabled(true);
         recTable->setColumnCount(6);
         recTable->setHorizontalHeaderLabels({QStringLiteral("巡查员"), QStringLiteral("开始时间"), QStringLiteral("结束时间"), QStringLiteral("时长(分)"), QStringLiteral("发现问题"), QStringLiteral("状态")});
         std::function<void()> loadRecords = [recTable, recSearchEdit, recStatusCombo]() {
-            while (recTable->rowCount() > 0) recTable->removeRow(0);
+            recTable->setRowCount(0);
             QString sql = "SELECT u.real_name, i.start_time, i.end_time, i.duration, i.issue_count, i.status FROM ge_inspection i LEFT JOIN sys_user u ON i.inspector_id = u.id WHERE i.del_flag = 0";
             QString searchText = recSearchEdit->text().trimmed();
             int statusFilter = recStatusCombo->currentData().toInt();
@@ -2399,7 +2517,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         auto* groupLayout = new QVBoxLayout(groupPage);
         // Group search toolbar
         auto* grpToolbar = new QWidget(groupPage);
-        grpToolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        grpToolbar->setStyleSheet("background:transparent;");
         auto* grpTbLayout = new QHBoxLayout(grpToolbar);
         grpTbLayout->setContentsMargins(0, 0, 0, 8);
         grpTbLayout->setSpacing(10);
@@ -2408,23 +2526,33 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         grpSearchEdit->setMinimumWidth(200);
         grpSearchEdit->setClearButtonEnabled(true);
         grpTbLayout->addWidget(grpSearchEdit);
+        auto* careLevelCombo = new QComboBox(grpToolbar);
+        careLevelCombo->addItem(QStringLiteral("全部等级"), -1);
+        careLevelCombo->addItem(QStringLiteral("一般"), 1);
+        careLevelCombo->addItem(QStringLiteral("重点"), 2);
+        careLevelCombo->addItem(QStringLiteral("特殊"), 3);
+        careLevelCombo->setMinimumWidth(120);
+        grpTbLayout->addWidget(careLevelCombo);
         grpTbLayout->addStretch();
         groupLayout->addWidget(grpToolbar);
 
         auto* groupTable = new QTableWidget(groupPage);
         groupTable->setAlternatingRowColors(true);
-        groupTable->horizontalHeader()->setStretchLastSection(false);
+        groupTable->horizontalHeader()->setStretchLastSection(true);
         groupTable->setSelectionBehavior(QAbstractItemView::SelectRows);
         groupTable->setStyleSheet(TABLE_STYLE);
         groupTable->setShowGrid(false);
         groupTable->verticalHeader()->setVisible(false);
+        groupTable->setSortingEnabled(true);
         groupTable->setColumnCount(6);
         groupTable->setHorizontalHeaderLabels({QStringLiteral("居民姓名"), QStringLiteral("类型"), QStringLiteral("关怀等级"), QStringLiteral("走访频率"), QStringLiteral("责任人"), QStringLiteral("最近走访")});
-        std::function<void()> loadGroups = [groupTable, grpSearchEdit]() {
-            while (groupTable->rowCount() > 0) groupTable->removeRow(0);
+        std::function<void()> loadGroups = [groupTable, grpSearchEdit, careLevelCombo]() {
+            groupTable->setRowCount(0);
             QString sql = "SELECT r.name, sg.group_type, sg.care_level, sg.care_frequency, u.real_name, sg.last_visit_time FROM cm_special_group sg JOIN cm_resident r ON sg.resident_id = r.id LEFT JOIN sys_user u ON sg.care_worker_id = u.id WHERE sg.del_flag = 0";
             QString searchText = grpSearchEdit->text().trimmed();
+            int careLevelFilter = careLevelCombo->currentData().toInt();
             if (!searchText.isEmpty()) sql += " AND r.name LIKE '%" + searchText + "%'";
+            if (careLevelFilter >= 0) sql += " AND sg.care_level = " + QString::number(careLevelFilter);
             QSqlQuery grpQ(sql);
             int gRow = 0;
             while (grpQ.next()) {
@@ -2445,6 +2573,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         };
         loadGroups();
         connect(grpSearchEdit, &QLineEdit::textChanged, this, [=]() { loadGroups(); });
+        connect(careLevelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadGroups(); });
         groupLayout->addWidget(groupTable);
         tabWidget->addTab(groupPage, QStringLiteral("关怀对象"));
 
@@ -2453,7 +2582,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         auto* visitLayout = new QVBoxLayout(visitPage);
         // Visit search toolbar
         auto* visToolbar = new QWidget(visitPage);
-        visToolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        visToolbar->setStyleSheet("background:transparent;");
         auto* visTbLayout = new QHBoxLayout(visToolbar);
         visTbLayout->setContentsMargins(0, 0, 0, 8);
         visTbLayout->setSpacing(10);
@@ -2462,25 +2591,35 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         visSearchEdit->setMinimumWidth(200);
         visSearchEdit->setClearButtonEnabled(true);
         visTbLayout->addWidget(visSearchEdit);
+        auto* visitTypeCombo = new QComboBox(visToolbar);
+        visitTypeCombo->addItem(QStringLiteral("全部类型"), -1);
+        visitTypeCombo->addItem(QStringLiteral("定期走访"), 1);
+        visitTypeCombo->addItem(QStringLiteral("临时走访"), 2);
+        visitTypeCombo->addItem(QStringLiteral("电话慰问"), 3);
+        visitTypeCombo->setMinimumWidth(120);
+        visTbLayout->addWidget(visitTypeCombo);
         visTbLayout->addStretch();
         visitLayout->addWidget(visToolbar);
 
         auto* visitTable = new QTableWidget(visitPage);
         visitTable->setAlternatingRowColors(true);
-        visitTable->horizontalHeader()->setStretchLastSection(false);
+        visitTable->horizontalHeader()->setStretchLastSection(true);
         visitTable->setSelectionBehavior(QAbstractItemView::SelectRows);
         visitTable->setStyleSheet(TABLE_STYLE);
         visitTable->setShowGrid(false);
         visitTable->verticalHeader()->setVisible(false);
+        visitTable->setSortingEnabled(true);
         visitTable->setColumnCount(5);
         visitTable->setHorizontalHeaderLabels({QStringLiteral("走访人"), QStringLiteral("走访时间"), QStringLiteral("类型"), QStringLiteral("发现问题"), QStringLiteral("后续跟进")});
         visitTable->setColumnWidth(3, 180);
         visitTable->setColumnWidth(4, 180);
-        std::function<void()> loadVisits = [visitTable, visSearchEdit]() {
-            while (visitTable->rowCount() > 0) visitTable->removeRow(0);
+        std::function<void()> loadVisits = [visitTable, visSearchEdit, visitTypeCombo]() {
+            visitTable->setRowCount(0);
             QString sql = "SELECT u.real_name, vr.visit_time, vr.visit_type, vr.found_issues, vr.follow_up FROM ge_visit_record vr LEFT JOIN sys_user u ON vr.visitor_id = u.id WHERE vr.del_flag = 0";
             QString searchText = visSearchEdit->text().trimmed();
+            int visitTypeFilter = visitTypeCombo->currentData().toInt();
             if (!searchText.isEmpty()) sql += " AND u.real_name LIKE '%" + searchText + "%'";
+            if (visitTypeFilter >= 0) sql += " AND vr.visit_type = " + QString::number(visitTypeFilter);
             sql += " ORDER BY vr.visit_time DESC";
             QSqlQuery visQ(sql);
             int vRow = 0;
@@ -2496,6 +2635,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         };
         loadVisits();
         connect(visSearchEdit, &QLineEdit::textChanged, this, [=]() { loadVisits(); });
+        connect(visitTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadVisits(); });
         visitLayout->addWidget(visitTable);
         tabWidget->addTab(visitPage, QStringLiteral("走访记录"));
         layout->addWidget(tabWidget);
@@ -2511,7 +2651,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
 
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -2535,7 +2675,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         table->setColumnWidth(4, 150);
         table->setColumnWidth(5, 150);
         std::function<void()> loadSupervisions = [table, searchEdit, statusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT e.title, u1.real_name, u2.real_name, s.deadline, s.reason, s.feedback, s.status FROM ge_supervision s LEFT JOIN ge_event e ON s.event_id = e.id LEFT JOIN sys_user u1 ON s.supervisor_id = u1.id LEFT JOIN sys_user u2 ON s.supervise_to = u2.id WHERE s.del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int statusFilter = statusCombo->currentData().toInt();
@@ -2587,6 +2727,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
             auto* tl = new QLabel(label); tl->setStyleSheet("color:#8c8c8c;font-size:12px;");
             auto* vl = new QLabel(val); vl->setStyleSheet(QString("color:%1;font-size:26px;font-weight:bold;").arg(color));
             cl->addWidget(indicator); cl->addWidget(tl); cl->addWidget(vl);
+            applyCardShadow(card);
             return card;
         };
         QSqlQuery opTotalQ("SELECT COUNT(*) FROM ge_opinion WHERE create_time >= date('now','start of month') AND del_flag = 0"); int opTotal = opTotalQ.next() ? opTotalQ.value(0).toInt() : 0;
@@ -2634,7 +2775,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         table->setColumnWidth(2, 250);
 
         std::function<void()> loadOpinions = [table, opSearchEdit, opCatCombo, opStatusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT o.title, o.category, o.content, r.name, o.create_time, o.status "
                 "FROM ge_opinion o LEFT JOIN cm_resident r ON o.resident_id = r.id "
                 "WHERE o.del_flag = 0";
@@ -2704,7 +2845,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
 
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -2713,21 +2854,30 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        auto* periodCombo = new QComboBox(toolbar);
+        periodCombo->addItem(QStringLiteral("全部周期"), QString());
+        periodCombo->addItem(QStringLiteral("2026年6月"), "2026-06");
+        periodCombo->addItem(QStringLiteral("2026年5月"), "2026-05");
+        periodCombo->addItem(QStringLiteral("2026年4月"), "2026-04");
+        periodCombo->setMinimumWidth(120);
+        tbLayout->addWidget(periodCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         // Ranking table
         table->setColumnCount(6);
         table->setHorizontalHeaderLabels({QStringLiteral("排名"), QStringLiteral("网格员"), QStringLiteral("处理事件"), QStringLiteral("平均时效(h)"), QStringLiteral("完成率"), QStringLiteral("评分")});
-        std::function<void()> loadAssessments = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadAssessments = [table, searchEdit, periodCombo]() {
+            table->setRowCount(0);
             QString sql = "SELECT ar.target_user_id, u.real_name, COUNT(*) as event_count, "
                 "AVG(ar.actual_value) as avg_actual, AVG(ar.score) as avg_score, MIN(ar.rank) as best_rank "
                 "FROM kf_assessment_result ar "
                 "LEFT JOIN sys_user u ON ar.target_user_id = u.id "
                 "WHERE ar.del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
+            QString periodFilter = periodCombo->currentData().toString();
             if (!searchText.isEmpty()) sql += " AND u.real_name LIKE '%" + searchText + "%'";
+            if (!periodFilter.isEmpty()) sql += " AND ar.period = '" + periodFilter + "'";
             sql += " GROUP BY ar.target_user_id ORDER BY avg_score DESC";
             QSqlQuery rankQ(sql);
             int rRow = 0;
@@ -2750,6 +2900,7 @@ QWidget* MainWindow::createGovernancePage(const QString& sub) {
         };
         loadAssessments();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadAssessments(); });
+        connect(periodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadAssessments(); });
     }
 
     layout->addWidget(table);
@@ -2764,11 +2915,12 @@ QWidget* MainWindow::createServicePage(const QString& sub) {
 
     auto* table = new QTableWidget(page);
     table->setAlternatingRowColors(true);
-    table->horizontalHeader()->setStretchLastSection(false);
+    table->horizontalHeader()->setStretchLastSection(true);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setStyleSheet(TABLE_STYLE);
     table->setShowGrid(false);
     table->verticalHeader()->setVisible(false);
+    table->setSortingEnabled(true);
 
     auto& db = DatabaseManager::instance();
 
@@ -2786,7 +2938,7 @@ QWidget* MainWindow::createServicePage(const QString& sub) {
         int totalAct = 0, recruiting = 0, totalSignup = 0, ended = 0;
         QSqlQuery sq1("SELECT COUNT(*) FROM sv_volunteer_activity WHERE del_flag = 0"); if(sq1.next()) totalAct = sq1.value(0).toInt();
         QSqlQuery sq2("SELECT COUNT(*) FROM sv_volunteer_activity WHERE status = 1 AND del_flag = 0"); if(sq2.next()) recruiting = sq2.value(0).toInt();
-        QSqlQuery sq3("SELECT COUNT(*) FROM sv_volunteer_signup"); if(sq3.next()) totalSignup = sq3.value(0).toInt();
+        QSqlQuery sq3("SELECT COUNT(*) FROM sv_volunteer_signup WHERE del_flag = 0"); if(sq3.next()) totalSignup = sq3.value(0).toInt();
         QSqlQuery sq4("SELECT COUNT(*) FROM sv_volunteer_activity WHERE status = 3 AND del_flag = 0"); if(sq4.next()) ended = sq4.value(0).toInt();
         struct VolStat { QString label; QString val; QString color; };
         VolStat volStats[] = {
@@ -2848,16 +3000,17 @@ QWidget* MainWindow::createServicePage(const QString& sub) {
         actTable->setStyleSheet(TABLE_STYLE);
         actTable->setShowGrid(false);
         actTable->verticalHeader()->setVisible(false);
+        actTable->setSortingEnabled(true);
         actTable->setColumnCount(8);
         actTable->setHorizontalHeaderLabels({QStringLiteral("活动标题"), QStringLiteral("类型"), QStringLiteral("地点"), QStringLiteral("开始时间"), QStringLiteral("结束时间"), QStringLiteral("需求/已报"), QStringLiteral("状态"), QStringLiteral("操作")});
         actTable->setColumnWidth(0, 200);
         actTable->setColumnWidth(3, 130);
         actTable->setColumnWidth(4, 130);
         actTable->setColumnWidth(7, 80);
-        actTable->horizontalHeader()->setStretchLastSection(false);
+        actTable->horizontalHeader()->setStretchLastSection(true);
 
         std::function<void()> loadActivities = [actTable, actSearchEdit, actStatusCombo]() {
-            while (actTable->rowCount() > 0) actTable->removeRow(0);
+            actTable->setRowCount(0);
             QString sql = "SELECT id, title, activity_type, location, start_time, end_time, need_count, enrolled_count, status FROM sv_volunteer_activity WHERE del_flag = 0";
             QString actSearch = actSearchEdit->text().trimmed();
             int actStatusFilter = actStatusCombo->currentData().toInt();
@@ -2905,9 +3058,20 @@ QWidget* MainWindow::createServicePage(const QString& sub) {
             int sts = item->data(Qt::UserRole + 1).toInt();
             if (sts == 1) {
                 const auto& user = AuthService::instance().currentUser();
+                // Look up or create volunteer record for this user
+                QSqlQuery volQ("SELECT id FROM sv_volunteer WHERE user_id = " + QString::number(user.id));
+                qint64 volId = 0;
+                if (volQ.next()) {
+                    volId = volQ.value(0).toLongLong();
+                } else {
+                    volId = DatabaseManager::instance().insert("sv_volunteer", {
+                        {"user_id", user.id}, {"skills", QStringLiteral("通用")},
+                        {"available_time", QStringLiteral("不限")}, {"total_hours", 0}, {"status", 0}
+                    });
+                }
                 DatabaseManager::instance().insert("sv_volunteer_signup", {
-                    {"activity_id", id}, {"user_id", user.id}, {"user_name", user.nickname.isEmpty() ? user.username : user.nickname},
-                    {"signup_time", QDateTime::currentDateTime()}, {"status", 0}, {"create_by", user.id}
+                    {"activity_id", id}, {"volunteer_id", volId},
+                    {"signup_time", QDateTime::currentDateTime()}, {"status", 0}
                 });
                 loadActivities();
             }
@@ -2927,16 +3091,17 @@ QWidget* MainWindow::createServicePage(const QString& sub) {
 
         auto* signupTable = new QTableWidget(signupWidget);
         signupTable->setAlternatingRowColors(true);
-        signupTable->horizontalHeader()->setStretchLastSection(false);
+        signupTable->horizontalHeader()->setStretchLastSection(true);
         signupTable->setSelectionBehavior(QAbstractItemView::SelectRows);
         signupTable->setStyleSheet(TABLE_STYLE);
         signupTable->setShowGrid(false);
         signupTable->verticalHeader()->setVisible(false);
+        signupTable->setSortingEnabled(true);
         signupTable->setColumnCount(6);
         signupTable->setHorizontalHeaderLabels({QStringLiteral("活动标题"), QStringLiteral("报名时间"), QStringLiteral("签到时间"), QStringLiteral("签退时间"), QStringLiteral("服务时长"), QStringLiteral("状态")});
         signupTable->setColumnWidth(0, 250);
 
-        QSqlQuery sigQ("SELECT s.id, a.title, s.signup_time, s.checkin_time, s.checkout_time, s.hours, s.status FROM sv_volunteer_signup s LEFT JOIN sv_volunteer_activity a ON s.activity_id = a.id ORDER BY s.signup_time DESC");
+        QSqlQuery sigQ("SELECT s.id, a.title, s.signup_time, s.checkin_time, s.checkout_time, s.hours, s.status FROM sv_volunteer_signup s LEFT JOIN sv_volunteer_activity a ON s.activity_id = a.id WHERE s.del_flag = 0 ORDER BY s.signup_time DESC");
         int sigRow = 0;
         while (sigQ.next()) {
             signupTable->insertRow(sigRow);
@@ -2963,7 +3128,7 @@ QWidget* MainWindow::createServicePage(const QString& sub) {
     } else if (sub == "convenience") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -2987,7 +3152,7 @@ QWidget* MainWindow::createServicePage(const QString& sub) {
         table->setColumnCount(5);
         table->setHorizontalHeaderLabels({QStringLiteral("订单号"), QStringLiteral("标题"), QStringLiteral("服务类型"), QStringLiteral("状态"), QStringLiteral("预约时间")});
         std::function<void()> loadConvenience = [table, searchEdit, statusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT order_no, title, service_type, status, appointment_time FROM sv_service_order WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int statusFilter = statusCombo->currentData().toInt();
@@ -3039,7 +3204,7 @@ QWidget* MainWindow::createServicePage(const QString& sub) {
 
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -3063,7 +3228,7 @@ QWidget* MainWindow::createServicePage(const QString& sub) {
         table->setColumnWidth(0, 200);
         table->setColumnWidth(1, 150);
         std::function<void()> loadJobs = [table, searchEdit, statusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT title, company, salary_range, headcount, deadline, status FROM sv_job_posting WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int statusFilter = statusCombo->currentData().toInt();
@@ -3250,6 +3415,7 @@ QWidget* MainWindow::createReportPage(const QString& sub) {
             auto* tl = new QLabel(title); tl->setStyleSheet("color:#8c8c8c;font-size:12px;");
             auto* vl = new QLabel(val); vl->setStyleSheet(QString("color:%1;font-size:26px;font-weight:bold;").arg(color));
             cl->addWidget(indicator); cl->addWidget(tl); cl->addWidget(vl);
+            applyCardShadow(card);
             return card;
         };
 
@@ -3430,18 +3596,19 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
 
     auto* table = new QTableWidget(page);
     table->setAlternatingRowColors(true);
-    table->horizontalHeader()->setStretchLastSection(false);
+    table->horizontalHeader()->setStretchLastSection(true);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setStyleSheet(TABLE_STYLE);
     table->setShowGrid(false);
     table->verticalHeader()->setVisible(false);
+    table->setSortingEnabled(true);
 
     auto& db = DatabaseManager::instance();
 
     if (sub == "user") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -3452,8 +3619,8 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
         tbLayout->addWidget(searchEdit);
         auto* statusCombo = new QComboBox(toolbar);
         statusCombo->addItem(QStringLiteral("全部状态"), -1);
-        statusCombo->addItem(QStringLiteral("正常"), 1);
-        statusCombo->addItem(QStringLiteral("禁用"), 0);
+        statusCombo->addItem(QStringLiteral("正常"), 0);
+        statusCombo->addItem(QStringLiteral("禁用"), 1);
         statusCombo->setMinimumWidth(120);
         tbLayout->addWidget(statusCombo);
         tbLayout->addStretch();
@@ -3462,7 +3629,7 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
         table->setColumnCount(5);
         table->setHorizontalHeaderLabels({QStringLiteral("用户名"), QStringLiteral("真实姓名"), QStringLiteral("手机号"), QStringLiteral("类型"), QStringLiteral("状态")});
         std::function<void()> loadUsers = [table, searchEdit, statusCombo]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+            table->setRowCount(0);
             QString sql = "SELECT username, real_name, phone, user_type, status FROM sys_user WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
             int statusFilter = statusCombo->currentData().toInt();
@@ -3497,7 +3664,7 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
     } else if (sub == "role") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -3506,16 +3673,28 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        auto* roleDomainCombo = new QComboBox(toolbar);
+        roleDomainCombo->addItem(QStringLiteral("全部域"), QString());
+        roleDomainCombo->addItem(QStringLiteral("居民域"), "resident");
+        roleDomainCombo->addItem(QStringLiteral("物业域"), "property");
+        roleDomainCombo->addItem(QStringLiteral("治理域"), "governance");
+        roleDomainCombo->addItem(QStringLiteral("服务域"), "service");
+        roleDomainCombo->addItem(QStringLiteral("监督域"), "supervision");
+        roleDomainCombo->addItem(QStringLiteral("平台域"), "platform");
+        roleDomainCombo->setMinimumWidth(120);
+        tbLayout->addWidget(roleDomainCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         table->setColumnCount(4);
         table->setHorizontalHeaderLabels({QStringLiteral("角色名称"), QStringLiteral("标识"), QStringLiteral("域"), QStringLiteral("数据权限")});
-        std::function<void()> loadRoles = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadRoles = [table, searchEdit, roleDomainCombo]() {
+            table->setRowCount(0);
             QString sql = "SELECT role_name, role_key, role_domain, data_scope FROM sys_role WHERE del_flag = 0";
             QString searchText = searchEdit->text().trimmed();
+            QString domainFilter = roleDomainCombo->currentData().toString();
             if (!searchText.isEmpty()) sql += " AND (role_name LIKE '%" + searchText + "%' OR role_key LIKE '%" + searchText + "%')";
+            if (!domainFilter.isEmpty()) sql += " AND role_domain = '" + domainFilter + "'";
             sql += " ORDER BY sort_order";
             QSqlQuery q(sql);
             int row = 0;
@@ -3530,6 +3709,7 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
         };
         loadRoles();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadRoles(); });
+        connect(roleDomainCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadRoles(); });
     } else if (sub == "menu") {
         auto* tree = new QTreeWidget(page);
         tree->setHeaderLabels({QStringLiteral("菜单名称"), QStringLiteral("类型"), QStringLiteral("路径"), QStringLiteral("权限标识")});
@@ -3559,7 +3739,7 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
     } else if (sub == "dict") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -3568,16 +3748,26 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        auto* dictTypeCombo = new QComboBox(toolbar);
+        dictTypeCombo->addItem(QStringLiteral("全部类型"), QString());
+        QSqlQuery dtQ("SELECT dict_type, dict_name FROM sys_dict_type WHERE status = 0 ORDER BY dict_type");
+        while (dtQ.next()) {
+            dictTypeCombo->addItem(dtQ.value(1).toString(), dtQ.value(0).toString());
+        }
+        dictTypeCombo->setMinimumWidth(140);
+        tbLayout->addWidget(dictTypeCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         table->setColumnCount(3);
         table->setHorizontalHeaderLabels({QStringLiteral("字典类型"), QStringLiteral("标签"), QStringLiteral("值")});
-        std::function<void()> loadDicts = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadDicts = [table, searchEdit, dictTypeCombo]() {
+            table->setRowCount(0);
             QString sql = "SELECT dt.dict_type, dd.dict_label, dd.dict_value FROM sys_dict_data dd JOIN sys_dict_type dt ON dd.dict_type = dt.dict_type WHERE dt.status = 0 AND dd.status = 0";
             QString searchText = searchEdit->text().trimmed();
+            QString dictTypeFilter = dictTypeCombo->currentData().toString();
             if (!searchText.isEmpty()) sql += " AND (dt.dict_type LIKE '%" + searchText + "%' OR dd.dict_label LIKE '%" + searchText + "%')";
+            if (!dictTypeFilter.isEmpty()) sql += " AND dt.dict_type = '" + dictTypeFilter + "'";
             sql += " ORDER BY dt.dict_type, dd.sort_order";
             QSqlQuery q(sql);
             int row = 0;
@@ -3591,10 +3781,11 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
         };
         loadDicts();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadDicts(); });
+        connect(dictTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadDicts(); });
     } else if (sub == "log") {
         // Toolbar
         auto* toolbar = new QWidget(page);
-        toolbar->setObjectName("filterToolbar"); setStyleSheet("#filterToolbar{background:transparent;}");
+        toolbar->setStyleSheet("background:transparent;");
         auto* tbLayout = new QHBoxLayout(toolbar);
         tbLayout->setContentsMargins(0, 0, 0, 8);
         tbLayout->setSpacing(10);
@@ -3603,16 +3794,32 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
         searchEdit->setMinimumWidth(200);
         searchEdit->setClearButtonEnabled(true);
         tbLayout->addWidget(searchEdit);
+        // Module filter
+        auto* moduleCombo = new QComboBox(toolbar);
+        moduleCombo->addItem(QStringLiteral("全部模块"), "");
+        moduleCombo->addItem(QStringLiteral("用户管理"), QStringLiteral("用户管理"));
+        moduleCombo->addItem(QStringLiteral("工单管理"), QStringLiteral("工单管理"));
+        moduleCombo->addItem(QStringLiteral("事件管理"), QStringLiteral("事件管理"));
+        moduleCombo->addItem(QStringLiteral("报事报修"), QStringLiteral("报事报修"));
+        moduleCombo->addItem(QStringLiteral("公告管理"), QStringLiteral("公告管理"));
+        moduleCombo->addItem(QStringLiteral("督办管理"), QStringLiteral("督办管理"));
+        moduleCombo->addItem(QStringLiteral("系统设置"), QStringLiteral("系统设置"));
+        moduleCombo->addItem(QStringLiteral("角色管理"), QStringLiteral("角色管理"));
+        moduleCombo->setMinimumWidth(120);
+        tbLayout->addWidget(moduleCombo);
         tbLayout->addStretch();
         layout->addWidget(toolbar);
 
         table->setColumnCount(5);
         table->setHorizontalHeaderLabels({QStringLiteral("用户"), QStringLiteral("模块"), QStringLiteral("操作"), QStringLiteral("IP"), QStringLiteral("时间")});
-        std::function<void()> loadLogs = [table, searchEdit]() {
-            while (table->rowCount() > 0) table->removeRow(0);
+        std::function<void()> loadLogs = [table, searchEdit, moduleCombo]() {
+            table->setSortingEnabled(false);
+            table->setRowCount(0);
             QString sql = "SELECT username, module, operation, ip, operation_time FROM sys_operation_log WHERE 1=1";
             QString searchText = searchEdit->text().trimmed();
             if (!searchText.isEmpty()) sql += " AND (username LIKE '%" + searchText + "%' OR module LIKE '%" + searchText + "%' OR operation LIKE '%" + searchText + "%')";
+            QString moduleFilter = moduleCombo->currentData().toString();
+            if (!moduleFilter.isEmpty()) sql += " AND module = '" + moduleFilter + "'";
             sql += " ORDER BY operation_time DESC LIMIT 100";
             QSqlQuery q(sql);
             int row = 0;
@@ -3625,9 +3832,11 @@ QWidget* MainWindow::createSystemPage(const QString& sub) {
                 table->setItem(row, 4, new QTableWidgetItem(q.value(4).toDateTime().toString("yyyy-MM-dd hh:mm:ss")));
                 row++;
             }
+            table->setSortingEnabled(true);
         };
         loadLogs();
         connect(searchEdit, &QLineEdit::textChanged, this, [=]() { loadLogs(); });
+        connect(moduleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=]() { loadLogs(); });
     } else if (sub == "ai") {
         // AI智能问答 - 交互式聊天界面
         layout->removeWidget(table);

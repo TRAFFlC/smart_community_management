@@ -660,7 +660,8 @@ CREATE TABLE IF NOT EXISTS sv_volunteer_signup (
     checkin_time   DATETIME,
     checkout_time  DATETIME,
     hours          REAL DEFAULT 0,
-    create_time    DATETIME DEFAULT CURRENT_TIMESTAMP
+    create_time    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    del_flag       INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS sv_service_provider (

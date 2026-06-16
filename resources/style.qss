@@ -97,6 +97,24 @@ QHeaderView::section:hover {
     background: #f0f0f0;
 }
 
+/* 排序指示器 */
+QHeaderView::up-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 5px solid #1677ff;
+    width: 0;
+    height: 0;
+}
+QHeaderView::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #1677ff;
+    width: 0;
+    height: 0;
+}
+
 /* ---- 按钮系统 ---- */
 QPushButton {
     border-radius: 6px;

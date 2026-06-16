@@ -102,4 +102,40 @@ inline QString generateSessionId() {
 
 } // namespace Utils
 
+#include <QTableWidgetItem>
+
+// 自定义表格项，支持数值和日期的智能排序
+class NumericSortTableWidgetItem : public QTableWidgetItem {
+public:
+    using QTableWidgetItem::QTableWidgetItem;
+
+    bool operator<(const QTableWidgetItem& other) const override {
+        // 尝试去除货币符号和逗号后按数值比较
+        QString thisText = text().remove(QChar(0x00A5))
+                               .remove(QChar::fromLatin1(','))
+                               .remove(QChar::fromLatin1('%'))
+                               .trimmed();
+        QString otherText = other.text().remove(QChar(0x00A5))
+                                .remove(QChar::fromLatin1(','))
+                                .remove(QChar::fromLatin1('%'))
+                                .trimmed();
+
+        bool thisOk, otherOk;
+        double thisVal = thisText.toDouble(&thisOk);
+        double otherVal = otherText.toDouble(&otherOk);
+
+        if (thisOk && otherOk)
+            return thisVal < otherVal;
+
+        // 尝试日期比较 (yyyy-MM-dd hh:mm 格式)
+        QDateTime thisDate = QDateTime::fromString(text(), "yyyy-MM-dd hh:mm");
+        QDateTime otherDate = QDateTime::fromString(other.text(), "yyyy-MM-dd hh:mm");
+        if (thisDate.isValid() && otherDate.isValid())
+            return thisDate < otherDate;
+
+        // 回退到字符串比较
+        return QTableWidgetItem::operator<(other);
+    }
+};
+
 #endif // UTILS_H

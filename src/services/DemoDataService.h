@@ -5,6 +5,7 @@
 #include "utils/Utils.h"
 #include <QDebug>
 #include <QRandomGenerator>
+#include <cstdlib>
 
 class DemoDataService
 {
@@ -26,12 +27,14 @@ public:
         initUsers(db);
         initDictData(db);
         initArchiveData(db);
+        initFamilyData(db);
         initWorkOrders(db);
         initEvents(db);
         initAnnouncements(db);
         initVolunteerData(db);
         initServiceData(db);
         initParkingData(db);
+        initVehicleData(db);
         initPublicIncomeData(db);
         initTopicData(db);
         initKnowledgeBase(db);
@@ -41,6 +44,12 @@ public:
         initBillData(db);
         initMonthlyCardData(db);
         initOpinionData(db);
+        initInspectionData(db);
+        initVisitRecordData(db);
+        initSupervisionData(db);
+        initOperationLogData(db);
+        initVoteData(db);
+        initNotificationData(db);
 
         qDebug() << "Demo data initialized successfully";
     }
@@ -262,10 +271,10 @@ private:
         addUser("yewei_zhao", "123456", QStringLiteral("赵德胜"), "13800004001", 0, 18);
 
         // 服务商
-        addUser("fuwu_sun", "123456", QStringLiteral("孙丽"), "13800005001", 2, 16);
+        addUser("fuwu_sun", "123456", QStringLiteral("孙丽"), "13800005001", 2, 17);
 
         // 为张三创建居民档案和关联
-        db.insert("cm_resident", {{"user_id", r1}, {"name", QStringLiteral("张三")}, {"phone", "13800001001"}, {"phone_display", "138****1001"}, {"gender", 1}, {"status", 0}});
+        db.insert("cm_resident", {{"user_id", r1}, {"name", QStringLiteral("张三")}, {"phone", "13800001001"}, {"phone_display", "138****1001"}, {"gender", 1}, {"nationality", QStringLiteral("汉族")}, {"occupation", QStringLiteral("软件工程师")}, {"birthday", "1990-03-15"}, {"education", QStringLiteral("本科")}, {"id_card", "340104199003150000"}, {"political_status", QStringLiteral("群众")}, {"status", 0}});
     }
 
     static void initDictData(DatabaseManager &db)
@@ -446,8 +455,94 @@ private:
             db.insert("cm_special_group", {{"resident_id", rid}, {"group_type", 1}, {"detail", QStringLiteral("独居老人，子女在外地")}, {"care_level", 2}, {"care_frequency", "weekly"}});
         }
 
+        // 新增8条居民档案
+        struct ResidentInfo {
+            const char *name; const char *phone; const char *phoneDisplay;
+            int gender; const char *nationality; const char *occupation;
+            const char *birthday; const char *education; const char *idCard;
+            const char *politicalStatus;
+        };
+        ResidentInfo residents[] = {
+            {"李四", "13800001002", "138****1002", 1, "汉族", "销售经理", "1985-07-22", "本科", "340104198507220000", "群众"},
+            {"王五", "13800001003", "138****1003", 1, "汉族", "建筑工人", "1992-11-08", "高中", "340104199211080000", "群众"},
+            {"赵六", "13800001005", "138****1005", 0, "汉族", "小学教师", "1988-04-12", "本科", "340104198804120000", "中共党员"},
+            {"孙七", "13800001006", "138****1006", 1, "回族", "医生", "1975-09-30", "硕士", "340104197509300000", "群众"},
+            {"周八", "13800001007", "138****1007", 0, "汉族", "退休会计", "1958-02-18", "大专", "340104195802180000", "中共党员"},
+            {"吴九", "13800001008", "138****1008", 1, "汉族", "快递员", "1995-06-25", "大专", "340104199506250000", "群众"},
+            {"郑十", "13800001009", "138****1009", 0, "汉族", "家庭主妇", "1990-12-03", "高中", "340104199012030000", "群众"},
+            {"陈十一", "13800001010", "138****1010", 1, "汉族", "大学生", "2002-08-15", "在读本科", "340104200208150000", "共青团员"},
+        };
+        QList<qint64> residentIds;
+        // 张三的ID
+        QSqlQuery zsRq("SELECT id FROM cm_resident WHERE name = '张三' LIMIT 1");
+        if (zsRq.next()) residentIds.append(zsRq.value(0).toLongLong());
+
+        for (int i = 0; i < 8; i++)
+        {
+            qint64 rid = db.insert("cm_resident", {
+                {"name", QStringLiteral(residents[i].name)}, {"phone", residents[i].phone},
+                {"phone_display", residents[i].phoneDisplay}, {"gender", residents[i].gender},
+                {"nationality", QStringLiteral(residents[i].nationality)}, {"occupation", QStringLiteral(residents[i].occupation)},
+                {"birthday", residents[i].birthday}, {"education", QStringLiteral(residents[i].education)},
+                {"id_card", residents[i].idCard}, {"political_status", QStringLiteral(residents[i].politicalStatus)},
+                {"status", 0}
+            });
+            residentIds.append(rid);
+        }
+
         Q_UNUSED(estate1Id)
         Q_UNUSED(estate2Id)
+    }
+
+    static void initFamilyData(DatabaseManager &db)
+    {
+        // 获取房屋ID
+        QSqlQuery hq("SELECT id FROM cm_house WHERE del_flag = 0 LIMIT 6");
+        QList<qint64> houseIds;
+        while (hq.next()) houseIds.append(hq.value(0).toLongLong());
+        if (houseIds.size() < 3) return;
+
+        // 获取居民ID
+        QSqlQuery rq("SELECT id, name FROM cm_resident WHERE del_flag = 0 ORDER BY id LIMIT 9");
+        QList<QPair<qint64, QString>> residentList;
+        while (rq.next()) residentList.append({rq.value(0).toLongLong(), rq.value(1).toString()});
+        if (residentList.size() < 9) return;
+
+        // 家庭1: 张家 (residentList[0]=张三, [6]=郑十, [7]=陈十一)
+        qint64 fam1Id = db.insert("cm_family", {
+            {"family_name", QStringLiteral("张三家庭")}, {"house_id", houseIds[0]},
+            {"head_resident_id", residentList[0].first}, {"member_count", 3}
+        });
+        db.insert("cm_family_member", {{"family_id", fam1Id}, {"resident_id", residentList[0].first}, {"relation", QStringLiteral("户主")}, {"is_head", 1}});
+        db.insert("cm_family_member", {{"family_id", fam1Id}, {"resident_id", residentList[6].first}, {"relation", QStringLiteral("配偶")}, {"is_head", 0}});
+        db.insert("cm_family_member", {{"family_id", fam1Id}, {"resident_id", residentList[7].first}, {"relation", QStringLiteral("子女")}, {"is_head", 0}});
+        // 关联房屋
+        db.insert("cm_house_resident", {{"house_id", houseIds[0]}, {"resident_id", residentList[0].first}, {"relation_type", 1}});
+        db.insert("cm_house_resident", {{"house_id", houseIds[0]}, {"resident_id", residentList[6].first}, {"relation_type", 2}});
+        db.insert("cm_house_resident", {{"house_id", houseIds[0]}, {"resident_id", residentList[7].first}, {"relation_type", 3}});
+
+        // 家庭2: 李家 (residentList[1]=李四, [3]=赵六, [4]=孙七, [5]=周八)
+        qint64 fam2Id = db.insert("cm_family", {
+            {"family_name", QStringLiteral("李四家庭")}, {"house_id", houseIds[1]},
+            {"head_resident_id", residentList[1].first}, {"member_count", 4}
+        });
+        db.insert("cm_family_member", {{"family_id", fam2Id}, {"resident_id", residentList[1].first}, {"relation", QStringLiteral("户主")}, {"is_head", 1}});
+        db.insert("cm_family_member", {{"family_id", fam2Id}, {"resident_id", residentList[3].first}, {"relation", QStringLiteral("配偶")}, {"is_head", 0}});
+        db.insert("cm_family_member", {{"family_id", fam2Id}, {"resident_id", residentList[4].first}, {"relation", QStringLiteral("父母")}, {"is_head", 0}});
+        db.insert("cm_family_member", {{"family_id", fam2Id}, {"resident_id", residentList[5].first}, {"relation", QStringLiteral("父母")}, {"is_head", 0}});
+        db.insert("cm_house_resident", {{"house_id", houseIds[1]}, {"resident_id", residentList[1].first}, {"relation_type", 1}});
+        db.insert("cm_house_resident", {{"house_id", houseIds[1]}, {"resident_id", residentList[3].first}, {"relation_type", 2}});
+        db.insert("cm_house_resident", {{"house_id", houseIds[1]}, {"resident_id", residentList[4].first}, {"relation_type", 3}});
+
+        // 家庭3: 王家 (residentList[2]=王五, [8]=吴九)
+        qint64 fam3Id = db.insert("cm_family", {
+            {"family_name", QStringLiteral("王五家庭")}, {"house_id", houseIds[2]},
+            {"head_resident_id", residentList[2].first}, {"member_count", 3}
+        });
+        db.insert("cm_family_member", {{"family_id", fam3Id}, {"resident_id", residentList[2].first}, {"relation", QStringLiteral("户主")}, {"is_head", 1}});
+        db.insert("cm_family_member", {{"family_id", fam3Id}, {"resident_id", residentList[8].first}, {"relation", QStringLiteral("兄弟")}, {"is_head", 0}});
+        db.insert("cm_house_resident", {{"house_id", houseIds[2]}, {"resident_id", residentList[2].first}, {"relation_type", 1}});
+        db.insert("cm_house_resident", {{"house_id", houseIds[2]}, {"resident_id", residentList[8].first}, {"relation_type", 4}});
     }
 
     static void initWorkOrders(DatabaseManager &db)
@@ -498,6 +593,13 @@ private:
             int type = (i % 5) + 1;
             db.insert("wo_work_order", {{"order_no", Utils::generateOrderNo()}, {"estate_id", estateId}, {"house_id", houseId}, {"reporter_id", reporterId}, {"reporter_name", reporterName}, {"order_type", type}, {"priority", 1}, {"title", QStringLiteral("历史工单-") + QString::number(i + 1)}, {"description", QStringLiteral("测试历史工单数据")}, {"status", 4}, {"accept_by", acceptId}, {"accept_time", now.addDays(-10 - i)}, {"assign_to", workerId}, {"assign_time", now.addDays(-10 - i)}, {"finish_time", now.addDays(-8 - i)}, {"sla_deadline", now.addDays(-8 - i)}, {"source", 0}});
         }
+
+        // 投诉工单(source=2) - 投诉建议页面使用 WHERE source = 2
+        db.insert("wo_work_order", {{"order_no", Utils::generateOrderNo()}, {"estate_id", estateId}, {"house_id", houseId}, {"reporter_id", reporterId}, {"reporter_name", reporterName}, {"reporter_phone", "138****1001"}, {"order_type", 0}, {"priority", 2}, {"title", QStringLiteral("物业态度恶劣，保安辱骂业主")}, {"description", QStringLiteral("小区南门保安对进出业主态度恶劣，多次发生言语冲突")}, {"status", 3}, {"accept_by", acceptId}, {"accept_time", now.addDays(-2)}, {"assign_to", workerId}, {"assign_time", now.addDays(-2)}, {"sla_deadline", now.addDays(1)}, {"source", 2}});
+
+        db.insert("wo_work_order", {{"order_no", Utils::generateOrderNo()}, {"estate_id", estateId}, {"house_id", houseId}, {"reporter_id", reporterId}, {"reporter_name", reporterName}, {"reporter_phone", "138****1001"}, {"order_type", 1}, {"priority", 1}, {"title", QStringLiteral("建议在小区增设垃圾分类指导站")}, {"description", QStringLiteral("目前垃圾分类投放点标识不清，建议增设指导站并安排专人指导")}, {"status", 1}, {"accept_by", acceptId}, {"accept_time", now.addDays(-1)}, {"sla_deadline", now.addDays(3)}, {"source", 2}});
+
+        db.insert("wo_work_order", {{"order_no", Utils::generateOrderNo()}, {"estate_id", estateId}, {"house_id", houseId}, {"reporter_id", reporterId}, {"reporter_name", reporterName}, {"reporter_phone", "138****1001"}, {"order_type", 0}, {"priority", 1}, {"title", QStringLiteral("楼上住户深夜扰民")}, {"description", QStringLiteral("2号楼501住户经常深夜大声喧哗，严重影响楼下居民休息")}, {"status", 4}, {"accept_by", acceptId}, {"accept_time", now.addDays(-5)}, {"assign_to", workerId}, {"assign_time", now.addDays(-5)}, {"finish_time", now.addDays(-3)}, {"sla_deadline", now.addDays(-2)}, {"source", 2}});
     }
 
     static void initEvents(DatabaseManager &db)
@@ -740,6 +842,51 @@ private:
         while (vq.next() && pq.next())
         {
             db.update("cm_vehicle", vq.value(0).toLongLong(), {{"parking_space_id", pq.value(0).toLongLong()}});
+        }
+    }
+
+    static void initVehicleData(DatabaseManager &db)
+    {
+        QSqlQuery eq("SELECT id FROM cm_estate WHERE del_flag = 0 LIMIT 1");
+        qint64 estateId = eq.next() ? eq.value(0).toLongLong() : 0;
+
+        QSqlQuery psq("SELECT id FROM cm_parking_space WHERE del_flag = 0 AND status = 1 LIMIT 5");
+        QList<qint64> parkingIds;
+        while (psq.next()) parkingIds.append(psq.value(0).toLongLong());
+
+        QSqlQuery rq("SELECT id FROM cm_resident WHERE del_flag = 0 LIMIT 5");
+        QList<qint64> residentIds;
+        while (rq.next()) residentIds.append(rq.value(0).toLongLong());
+
+        struct VehicleInfo {
+            const char *plate; const char *brand; const char *color;
+            int type;
+        };
+        VehicleInfo vehicles[] = {
+            {"皖A·12345", "比亚迪", "白色", 1},  // 轿车
+            {"皖A·23456", "大众", "黑色", 2},     // SUV
+            {"皖A·34567", "丰田", "银色", 1},     // 轿车
+            {"皖A·45678", "宝马", "红色", 2},     // SUV
+            {"皖A·56789", "本田", "白色", 4},     // MPV (其他)
+        };
+
+        for (int i = 0; i < 5; i++)
+        {
+            qint64 psId = (i < parkingIds.size()) ? parkingIds[i] : 0;
+            QVariantMap vData;
+            vData["plate_number"] = QString(vehicles[i].plate);
+            vData["vehicle_brand"] = QString(vehicles[i].brand);
+            vData["vehicle_color"] = QString(vehicles[i].color);
+            vData["vehicle_type"] = vehicles[i].type;
+            vData["estate_id"] = estateId;
+            if (psId > 0) vData["parking_space_id"] = psId;
+            vData["status"] = 0;
+            qint64 vid = db.insert("cm_vehicle", vData);
+
+            // 关联车辆和居民
+            if (i < residentIds.size() && vid > 0) {
+                db.insert("cm_vehicle_owner", {{"vehicle_id", vid}, {"resident_id", residentIds[i]}, {"relation", QStringLiteral("车主")}});
+            }
         }
     }
 
@@ -1095,17 +1242,18 @@ private:
         {
             const char *plate;
             const char *owner;
+            const char *phone;
             int cardType;
             int sts;
             int monthOffset;
         };
         MCData mcList[] = {
-            {"京A88888", "张三", 2, 1, 0},  // 年卡, 有效
-            {"京B66666", "李四", 1, 1, 0},  // 季卡, 有效
-            {"京C12345", "王五", 0, 1, 0},  // 月卡, 有效
-            {"京D99999", "赵六", 0, 0, -1}, // 月卡, 已过期
-            {"京E55555", "钱七", 2, 1, 0},  // 年卡, 有效
-            {"京F77777", "孙八", 1, 2, 0},  // 季卡, 待续费
+            {"京A88888", "张三", "13800001001", 2, 1, 0},  // 年卡, 有效
+            {"京B66666", "李四", "13800001002", 1, 1, 0},  // 季卡, 有效
+            {"京C12345", "王五", "13800001003", 0, 1, 0},  // 月卡, 有效
+            {"京D99999", "赵六", "13800001005", 0, 0, -1}, // 月卡, 已过期
+            {"京E55555", "钱七", "13800001011", 2, 1, 0},  // 年卡, 有效
+            {"京F77777", "孙八", "13800001012", 1, 2, 0},  // 季卡, 待续费
         };
 
         double fees[] = {150.0, 400.0, 1500.0}; // 月卡/季卡/年卡
@@ -1116,6 +1264,7 @@ private:
             mcData["estate_id"] = estateId;
             mcData["plate_no"] = QString(mcList[i].plate);
             mcData["owner_name"] = QString(mcList[i].owner);
+            mcData["owner_phone"] = QString(mcList[i].phone);
             mcData["space_id"] = spaces[sIdx].first;
             mcData["card_type"] = mcList[i].cardType;
             mcData["fee"] = fees[mcList[i].cardType];
@@ -1197,6 +1346,249 @@ private:
                 oData["reply_time"] = QDateTime::currentDateTime().addDays(oList[i].dayOffset + 1).toString("yyyy-MM-dd HH:mm:ss");
             }
             db.insert("ge_opinion", oData);
+        }
+    }
+
+    static void initInspectionData(DatabaseManager &db)
+    {
+        QSqlQuery gridQ("SELECT id FROM cm_grid LIMIT 1");
+        qint64 gridId = 0;
+        if (gridQ.next()) gridId = gridQ.value(0).toLongLong();
+
+        QSqlQuery uq("SELECT id FROM sys_user WHERE username = 'wangge_zhao'");
+        qint64 inspectorId = 0;
+        if (uq.next()) inspectorId = uq.value(0).toLongLong();
+
+        QSqlQuery uq2("SELECT id FROM sys_user WHERE username = 'wuye_baoan'");
+        qint64 baoanId = 0;
+        if (uq2.next()) baoanId = uq2.value(0).toLongLong();
+
+        QDateTime now = QDateTime::currentDateTime();
+
+        // 3 inspection plans
+        qint64 p1 = db.insert("ge_inspection_plan", {
+            {"grid_id", gridId}, {"plan_name", QStringLiteral("翠苑日常巡查计划")},
+            {"frequency", "daily"}, {"inspector_id", inspectorId},
+            {"start_date", now.addMonths(-3).toString("yyyy-MM-dd")},
+            {"end_date", now.addMonths(6).toString("yyyy-MM-dd")}, {"status", 1}
+        });
+        qint64 p2 = db.insert("ge_inspection_plan", {
+            {"grid_id", gridId}, {"plan_name", QStringLiteral("安全巡查周计划")},
+            {"frequency", "weekly"}, {"inspector_id", baoanId},
+            {"start_date", now.addMonths(-1).toString("yyyy-MM-dd")},
+            {"end_date", now.addMonths(3).toString("yyyy-MM-dd")}, {"status", 0}
+        });
+        db.insert("ge_inspection_plan", {
+            {"grid_id", gridId}, {"plan_name", QStringLiteral("夜间巡逻计划")},
+            {"frequency", "daily"}, {"inspector_id", baoanId},
+            {"start_date", now.addMonths(-2).toString("yyyy-MM-dd")},
+            {"end_date", now.addMonths(1).toString("yyyy-MM-dd")}, {"status", 1}
+        });
+
+        // 5 inspection records
+        struct InspRec { int dayOff; qint64 planId; int dur; int issues; int sts; const char* summary; };
+        InspRec recs[] = {
+            {-1, p1, 60, 2, 2, "发现2号楼外墙脱落和3号楼绿化枯死"},
+            {-2, p1, 45, 0, 2, "巡查正常，未发现异常"},
+            {-3, p2, 90, 1, 2, "发现南门门禁故障"},
+            {-4, p1, 55, 3, 2, "发现垃圾堆积、路灯故障、消防栓漏水"},
+            {-5, p2, 40, 0, 2, "夜间巡查正常，未发现异常"},
+        };
+        for (auto& r : recs) {
+            db.insert("ge_inspection", {
+                {"grid_id", gridId}, {"inspector_id", r.planId == p1 ? inspectorId : baoanId},
+                {"plan_id", r.planId},
+                {"start_time", now.addDays(r.dayOff)},
+                {"end_time", now.addDays(r.dayOff).addSecs(r.dur * 60)},
+                {"duration", r.dur}, {"issue_count", r.issues},
+                {"summary", QString::fromUtf8(r.summary)}, {"status", r.sts}
+            });
+        }
+    }
+
+    static void initVisitRecordData(DatabaseManager &db)
+    {
+        QSqlQuery sgQ("SELECT id FROM cm_special_group LIMIT 2");
+        QList<qint64> sgIds;
+        while (sgQ.next()) sgIds.append(sgQ.value(0).toLongLong());
+
+        QSqlQuery uq("SELECT id FROM sys_user WHERE username = 'shequ_lifang'");
+        qint64 lifangId = 0;
+        if (uq.next()) lifangId = uq.value(0).toLongLong();
+
+        QSqlQuery uq2("SELECT id FROM sys_user WHERE username = 'wangge_zhao'");
+        qint64 wanggeId = 0;
+        if (uq2.next()) wanggeId = uq2.value(0).toLongLong();
+
+        QDateTime now = QDateTime::currentDateTime();
+
+        struct VisitItem { int dayOff; qint64 visitorId; int type; const char* content; const char* issues; const char* follow; };
+        VisitItem visits[] = {
+            {-2, lifangId, 1, "定期走访独居老人刘奶奶，精神状态良好，生活物资充足", "", ""},
+            {-5, wanggeId, 1, "定期走访残疾家庭王叔叔，反映需要康复训练指导", "建议联系社区卫生服务中心", "已联系社区卫生中心安排康复师"},
+            {-8, lifangId, 3, "电话慰问张奶奶，询问近期身体状况", "", ""},
+            {-12, wanggeId, 2, "临时走访低保户李大哥，了解就业意向", "希望找一份保安工作", "已登记就业需求，推荐社区保安岗位"},
+            {-15, lifangId, 1, "定期走访空巢老人赵奶奶，帮助清理家务", "家中灯泡损坏", "已联系物业更换灯泡"},
+        };
+        for (auto& v : visits) {
+            QVariantMap data;
+            data["visitor_id"] = v.visitorId;
+            data["visit_time"] = now.addDays(v.dayOff);
+            data["visit_type"] = v.type;
+            data["content"] = QString::fromUtf8(v.content);
+            if (strlen(v.issues) > 0) data["found_issues"] = QString::fromUtf8(v.issues);
+            if (strlen(v.follow) > 0) data["follow_up"] = QString::fromUtf8(v.follow);
+            if (!sgIds.isEmpty()) data["special_group_id"] = sgIds.first();
+            db.insert("ge_visit_record", data);
+        }
+    }
+
+    static void initSupervisionData(DatabaseManager &db)
+    {
+        QSqlQuery evQ("SELECT id FROM ge_event WHERE del_flag = 0 LIMIT 3");
+        QList<qint64> evIds;
+        while (evQ.next()) evIds.append(evQ.value(0).toLongLong());
+        if (evIds.isEmpty()) return;
+
+        QSqlQuery uq("SELECT id FROM sys_user WHERE username = 'shequ_shuji'");
+        qint64 supervisorId = 0;
+        if (uq.next()) supervisorId = uq.value(0).toLongLong();
+
+        QSqlQuery uq2("SELECT id FROM sys_user WHERE username = 'wangge_zhao'");
+        qint64 wanggeId = 0;
+        if (uq2.next()) wanggeId = uq2.value(0).toLongLong();
+
+        QDateTime now = QDateTime::currentDateTime();
+
+        struct SupItem { int evIdx; int dayOff; int sts; const char* reason; const char* feedback; };
+        SupItem items[] = {
+            {0, 5, 2, "处理超时，需加快进度", "已完成修复，经检查验收合格"},
+            {1, 3, 1, "需协调城管部门参与处理", "已联系城管，预计3天内联合处理"},
+            {0, 7, 0, "涉及多部门协调，需上级支持", ""},
+            {evIds.size() > 2 ? 2 : 0, 10, 0, "居民反映强烈，需优先处理", ""},
+        };
+        for (auto& s : items) {
+            int idx = s.evIdx < evIds.size() ? s.evIdx : 0;
+            QVariantMap data;
+            data["event_id"] = evIds[idx];
+            data["supervisor_id"] = supervisorId;
+            data["supervise_to"] = wanggeId;
+            data["deadline"] = now.addDays(s.dayOff);
+            data["reason"] = QString::fromUtf8(s.reason);
+            data["status"] = s.sts;
+            if (strlen(s.feedback) > 0) {
+                data["feedback"] = QString::fromUtf8(s.feedback);
+                data["feedback_time"] = now.addDays(-1);
+            }
+            db.insert("ge_supervision", data);
+        }
+    }
+
+    static void initOperationLogData(DatabaseManager &db)
+    {
+        QDateTime now = QDateTime::currentDateTime();
+
+        struct LogItem { const char* user; const char* module; const char* op; const char* ip; int dayOff; int hourOff; };
+        LogItem logs[] = {
+            {"admin", "用户管理", "新增用户", "192.168.1.100", 0, -2},
+            {"wuye_kefu", "工单管理", "受理工单 #WO202606-003", "192.168.1.101", -1, -3},
+            {"shequ_lifang", "事件管理", "审核事件 #EV202606-001", "192.168.1.102", -1, -5},
+            {"zhangsan", "报事报修", "提交报修工单", "192.168.1.103", -2, -1},
+            {"admin", "系统设置", "修改数据字典", "192.168.1.100", -2, -4},
+            {"wuye_jingli", "公告管理", "发布社区公告", "192.168.1.105", -3, -2},
+            {"wangge_zhao", "事件管理", "上报网格事件", "192.168.1.106", -3, -6},
+            {"shequ_shuji", "督办管理", "创建督办任务", "192.168.1.107", -4, -1},
+            {"admin", "角色管理", "修改角色权限", "192.168.1.100", -5, -3},
+            {"wuye_weixiu", "工单管理", "完成维修并反馈", "192.168.1.108", -5, -7},
+        };
+        for (auto& l : logs) {
+            QVariantMap data;
+            data["username"] = QString::fromUtf8(l.user);
+            data["module"] = QString::fromUtf8(l.module);
+            data["operation"] = QString::fromUtf8(l.op);
+            data["method"] = "POST";
+            data["ip"] = QString::fromUtf8(l.ip);
+            data["status"] = 0;
+            int inner = l.dayOff * 7 + l.hourOff * 13 + 42;
+            data["cost_time"] = 50 + (std::abs(inner) % 200);
+            data["operation_time"] = now.addDays(l.dayOff).addSecs(l.hourOff * 3600);
+            db.insert("sys_operation_log", data);
+        }
+    }
+
+    static void initVoteData(DatabaseManager &db)
+    {
+        QSqlQuery tQ("SELECT id FROM oc_topic WHERE need_vote = 1 ORDER BY id LIMIT 2");
+        QList<qint64> topicIds;
+        while (tQ.next()) topicIds.append(tQ.value(0).toLongLong());
+        if (topicIds.isEmpty()) return;
+
+        // Get voter IDs
+        QStringList voters = {"yewei_zhao", "zhangsan", "admin", "wuye_jingli", "shequ_lifang", "wangge_zhao", "liulou"};
+        QList<qint64> voterIds;
+        for (auto& v : voters) {
+            QSqlQuery vq(QString("SELECT id FROM sys_user WHERE username = '%1'").arg(v));
+            if (vq.next()) voterIds.append(vq.value(0).toLongLong());
+        }
+
+        // Topic 1: votes (4 approve, 1 reject, 1 abstain = passed)
+        if (topicIds.size() >= 1) {
+            int choices1[] = {1, 1, 1, 2, 1, 3, 1}; // approve/reject/abstain
+            for (int i = 0; i < voterIds.size() && i < 7; i++) {
+                db.insert("oc_vote", {
+                    {"topic_id", topicIds[0]}, {"voter_id", voterIds[i]},
+                    {"choice", choices1[i]}
+                });
+            }
+        }
+
+        // Topic 2: votes (in progress, mixed)
+        if (topicIds.size() >= 2) {
+            int choices2[] = {1, 3, 1, 1, 2, 1, 2};
+            for (int i = 0; i < voterIds.size() && i < 7; i++) {
+                db.insert("oc_vote", {
+                    {"topic_id", topicIds[1]}, {"voter_id", voterIds[i]},
+                    {"choice", choices2[i]}
+                });
+            }
+        }
+    }
+
+    static void initNotificationData(DatabaseManager &db)
+    {
+        QSqlQuery uq("SELECT id FROM sys_user WHERE username = 'zhangsan'");
+        qint64 zsId = 0;
+        if (uq.next()) zsId = uq.value(0).toLongLong();
+
+        QSqlQuery uq2("SELECT id FROM sys_user WHERE username = 'admin'");
+        qint64 adminId = 0;
+        if (uq2.next()) adminId = uq2.value(0).toLongLong();
+
+        QSqlQuery uq3("SELECT id FROM sys_user WHERE username = 'wuye_kefu'");
+        qint64 kefuId = 0;
+        if (uq3.next()) kefuId = uq3.value(0).toLongLong();
+
+        QDateTime now = QDateTime::currentDateTime();
+
+        struct NotiItem { qint64 uid; int type; const char* title; const char* content; int read; int dayOff; };
+        NotiItem items[] = {
+            {zsId, 1, "工单处理完成", "您提交的报修工单已完成，请对服务进行评价", 0, -1},
+            {zsId, 2, "社区活动通知", "端午节社区包粽子活动将于本周六举行，欢迎参加！", 0, -2},
+            {adminId, 3, "系统更新提醒", "系统将于今晚22:00进行例行维护，预计30分钟", 1, -3},
+            {kefuId, 1, "新工单待处理", "居民张三提交了新的报修工单，请及时受理", 1, -1},
+            {zsId, 4, "物业费催缴", "您6月份物业费尚未缴纳，请尽快办理", 0, 0},
+            {kefuId, 5, "审批待办", "有一条新的投诉需要审批处理", 1, -4},
+        };
+        for (auto& n : items) {
+            QVariantMap data;
+            data["user_id"] = n.uid;
+            data["title"] = QString::fromUtf8(n.title);
+            data["content"] = QString::fromUtf8(n.content);
+            data["notification_type"] = n.type;
+            data["is_read"] = n.read;
+            data["create_time"] = now.addDays(n.dayOff);
+            if (n.read) data["read_time"] = now.addDays(n.dayOff).addSecs(3600);
+            db.insert("nt_notification", data);
         }
     }
 };

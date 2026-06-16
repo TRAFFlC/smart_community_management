@@ -177,15 +177,15 @@ namespace WorkOrderStatus {
     }
     inline QString color(int v) {
         switch(v) {
-            case Pending: return "#E6A23C";
-            case Accepted: return "#409EFF";
-            case Assigned: return "#409EFF";
-            case Processing: return "#409EFF";
-            case Completed: return "#67C23A";
-            case Closed: return "#909399";
-            case Evaluated: return "#67C23A";
-            case Rejected: return "#F56C6C";
-            default: return "#909399";
+            case Pending: return "#faad14";
+            case Accepted: return "#1677ff";
+            case Assigned: return "#1677ff";
+            case Processing: return "#1677ff";
+            case Completed: return "#52c41a";
+            case Closed: return "#8c8c8c";
+            case Evaluated: return "#52c41a";
+            case Rejected: return "#ff4d4f";
+            default: return "#8c8c8c";
         }
     }
 }
@@ -238,15 +238,15 @@ namespace EventStatus {
     }
     inline QString color(int v) {
         switch(v) {
-            case PendingReview: return "#E6A23C";
-            case Reviewed: return "#409EFF";
-            case Assigned: return "#409EFF";
-            case Processing: return "#409EFF";
-            case Completed: return "#67C23A";
-            case Rejected: return "#F56C6C";
-            case Archived: return "#909399";
-            case Escalated: return "#F56C6C";
-            default: return "#909399";
+            case PendingReview: return "#faad14";
+            case Reviewed: return "#1677ff";
+            case Assigned: return "#1677ff";
+            case Processing: return "#1677ff";
+            case Completed: return "#52c41a";
+            case Rejected: return "#ff4d4f";
+            case Archived: return "#8c8c8c";
+            case Escalated: return "#ff4d4f";
+            default: return "#8c8c8c";
         }
     }
 }
