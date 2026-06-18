@@ -81,11 +81,13 @@ public:
         request.setRawHeader("HTTP-Referer", "https://smart-community.local");
         request.setRawHeader("X-Title", "Smart Community AI Assistant");
 
+#ifdef QT_DEBUG
         // 调试：打印 key 前后几位（不泄露完整 key）
         QString masked = m_apiKey.trimmed();
         if (masked.length() > 10) masked = masked.left(6) + "..." + masked.right(4);
-        qDebug() << "[AI] Sending request with key:" << masked << "len:" << m_apiKey.trimmed().length();
+        qDebug() << "[AI] Sending request with key:" << masked;
         qDebug() << "[AI] Model:" << m_model;
+#endif
 
         QJsonDocument doc(body);
         qDebug() << "[AI] Body:" << doc.toJson(QJsonDocument::Compact).left(200);

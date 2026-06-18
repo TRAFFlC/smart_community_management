@@ -23,6 +23,14 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
     filterCombo->addItems({QStringLiteral("全部状态"), QStringLiteral("待受理"), QStringLiteral("已受理"), QStringLiteral("已派单"), QStringLiteral("处理中"), QStringLiteral("已完成"), QStringLiteral("已关闭"), QStringLiteral("已评价")});
     filterCombo->setFixedWidth(130);
     tbLayout->addWidget(filterCombo);
+
+    auto *exportBtn = new QPushButton(QStringLiteral("导出"), toolbar);
+    exportBtn->setCursor(Qt::PointingHandCursor);
+    tbLayout->addWidget(exportBtn);
+
+    auto *myTasksCheck = new QCheckBox(QStringLiteral("只看我的"), toolbar);
+    tbLayout->addWidget(myTasksCheck);
+
     tbLayout->addStretch();
 
     auto *newBtn = new QPushButton(QStringLiteral("+ 新建工单"), toolbar);
@@ -37,12 +45,13 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
     table->setColumnWidth(1, 180);
     table->setColumnWidth(7, 100);
     table->horizontalHeader()->setStretchLastSection(true);
+    layout->addWidget(table);
 
     auto *pb = new PaginationBar(page);
     layout->addWidget(pb);
     // 前向声明：用 shared_ptr 持有处理函数，避免循环依赖
     auto actionHandlerPtr = std::make_shared<std::function<void(qint64, int)>>();
-    std::function<void()> loadWorkOrders = [table, searchEdit, filterCombo, actionHandlerPtr, emptyHint, pb]()
+    std::function<void()> loadWorkOrders = [table, searchEdit, filterCombo, myTasksCheck, actionHandlerPtr, emptyHint, pb]()
     {
       table->setRowCount(0);
       QString sql = "SELECT id, order_no, title, order_type, priority, status, reporter_name, create_time, reporter_id, assign_to FROM wo_work_order WHERE del_flag = 0";
@@ -51,6 +60,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
       sql += scopeFilter.first;
       QString searchText = searchEdit->text().trimmed();
       int filterIdx = filterCombo->currentIndex();
+      bool onlyMine = myTasksCheck->isChecked();
       if (!searchText.isEmpty())
       {
         sql += " AND (order_no LIKE :search OR title LIKE :search)";
@@ -58,6 +68,10 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
       if (filterIdx > 0)
       {
         sql += " AND status = :status";
+      }
+      if (onlyMine)
+      {
+        sql += " AND assign_to = :myId";
       }
       sql += " ORDER BY create_time DESC";
       sql += " LIMIT :pageSize OFFSET :offset";
@@ -76,6 +90,8 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
         int sm[] = {0, 0, 1, 2, 3, 4, 5, 6};
         cntBinds << ":status" << sm[filterIdx];
       }
+      if (onlyMine)
+        cntBinds << ":myId" << AuthService::instance().currentUser().id;
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
       pb->setTotalCount(executeCountQuery(sql, cntBinds));
 
@@ -94,6 +110,8 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
         int statusMap[] = {0, 0, 1, 2, 3, 4, 5, 6};
         q.bindValue(":status", statusMap[filterIdx]);
       }
+      if (onlyMine)
+        q.bindValue(":myId", AuthService::instance().currentUser().id);
       q.bindValue(":pageSize", pb->pageSize());
       q.bindValue(":offset", pb->offset());
       q.exec();
@@ -108,7 +126,9 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
         table->setItem(row, 0, orderNoItem);
         table->setItem(row, 1, new QTableWidgetItem(q.value(2).toString()));
         table->setItem(row, 2, new QTableWidgetItem(WorkOrderType::label(q.value(3).toInt())));
-        table->setItem(row, 3, new QTableWidgetItem(WorkOrderPriority::label(q.value(4).toInt())));
+        QColor priColor(WorkOrderPriority::color(q.value(4).toInt()));
+        auto *priItem = createTagTableItem(WorkOrderPriority::label(q.value(4).toInt()), QColor(priColor.red(), priColor.green(), priColor.blue(), 30), priColor);
+        table->setItem(row, 3, priItem);
         QColor woColor(WorkOrderStatus::color(q.value(5).toInt()));
         auto *statusItem = createTagTableItem(WorkOrderStatus::label(q.value(5).toInt()), QColor(woColor.red(), woColor.green(), woColor.blue(), 30), woColor);
         table->setItem(row, 4, statusItem);
@@ -407,6 +427,10 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
             { loadWorkOrders(); });
     QObject::connect(filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), page, [=]()
             { loadWorkOrders(); });
+    QObject::connect(myTasksCheck, &QCheckBox::toggled, page, [=]()
+            { loadWorkOrders(); });
+    QObject::connect(exportBtn, &QPushButton::clicked, page, [table, page]()
+            { exportTableToCsv(table, QStringLiteral("工单列表.csv"), page); });
 
     // New work order dialog
     QObject::connect(newBtn, &QPushButton::clicked, page, [=]()
@@ -448,6 +472,66 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
             form->addRow(QStringLiteral("位置:"), locEdit);
 
             dlgLayout->addLayout(form);
+            dlgLayout->addSpacing(8);
+
+            // 图片上传区域
+            QStringList selectedImages;
+            auto* imgLabel = new QLabel(QStringLiteral("附件图片（可选，最多5张）"), &dlg);
+            imgLabel->setStyleSheet("font-size: 13px; color: #64748b; background: transparent;");
+            dlgLayout->addWidget(imgLabel);
+            auto* imgListWidget = new QWidget(&dlg);
+            auto* imgListLayout = new QVBoxLayout(imgListWidget);
+            imgListLayout->setContentsMargins(0, 0, 0, 0);
+            imgListLayout->setSpacing(4);
+            dlgLayout->addWidget(imgListWidget);
+
+            std::function<void()> refreshImageList;
+            refreshImageList = [&]() {
+                QLayoutItem* child;
+                while ((child = imgListLayout->takeAt(0)) != nullptr) {
+                    if (child->widget()) child->widget()->deleteLater();
+                    delete child;
+                }
+                for (int i = 0; i < selectedImages.size(); ++i) {
+                    auto* row = new QWidget(imgListWidget);
+                    auto* rowLay = new QHBoxLayout(row);
+                    rowLay->setContentsMargins(0, 0, 0, 0);
+                    auto* nameLabel = new QLabel(QFileInfo(selectedImages[i]).fileName(), row);
+                    nameLabel->setStyleSheet("font-size: 12px; color: #334155; background: transparent;");
+                    rowLay->addWidget(nameLabel);
+                    rowLay->addStretch();
+                    auto* rmBtn = new QPushButton(QStringLiteral("×"), row);
+                    rmBtn->setFixedSize(20, 20);
+                    rmBtn->setStyleSheet("QPushButton{border:none; color:#b91c1c; font-size:14px; font-weight:bold; background:transparent;} QPushButton:hover{background:#fee2e2; border-radius:3px;}");
+                    rmBtn->setCursor(Qt::PointingHandCursor);
+                    int idx = i;
+                    QObject::connect(rmBtn, &QPushButton::clicked, [&, idx]() {
+                        selectedImages.removeAt(idx);
+                        refreshImageList();
+                    });
+                    rowLay->addWidget(rmBtn);
+                    imgListLayout->addWidget(row);
+                }
+            };
+
+            auto* addImgBtn = new QPushButton(QStringLiteral("+ 添加图片"), &dlg);
+            addImgBtn->setCursor(Qt::PointingHandCursor);
+            addImgBtn->setStyleSheet("QPushButton{border:1px dashed #cbd5e1; border-radius:4px; padding:6px 16px; color:#64748b; background:#f8fafc; font-size:13px;} QPushButton:hover{border-color:#b45309; color:#b45309;}");
+            QObject::connect(addImgBtn, &QPushButton::clicked, [&]() {
+                if (selectedImages.size() >= 5) {
+                    QMessageBox::warning(&dlg, QStringLiteral("提示"), QStringLiteral("最多上传5张图片"));
+                    return;
+                }
+                QStringList files = QFileDialog::getOpenFileNames(&dlg, QStringLiteral("选择图片"), QString(),
+                    QStringLiteral("图片文件 (*.jpg *.jpeg *.png *.bmp *.gif);;所有文件 (*)"));
+                for (const QString& f : files) {
+                    if (selectedImages.size() >= 5) break;
+                    if (!selectedImages.contains(f)) selectedImages.append(f);
+                }
+                refreshImageList();
+            });
+            dlgLayout->addWidget(addImgBtn);
+
             dlgLayout->addSpacing(12);
 
             auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
@@ -468,6 +552,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
                     {"priority", prioCombo->currentIndex() + 1},
                     {"description", descEdit->toPlainText().trimmed()},
                     {"location_desc", locEdit->text().trimmed()},
+                    {"images", selectedImages.isEmpty() ? QVariant() : selectedImages.join(",")},
                     {"reporter_id", user.id}, {"reporter_name", user.nickname.isEmpty() ? user.username : user.nickname},
                     {"reporter_phone", user.phone},
                     {"status", 0}, {"source", 0},
@@ -519,6 +604,7 @@ void PageFactory::buildPropertyComplaint(BasePage *page, QVBoxLayout *layout, QT
     table->setColumnWidth(1, 200);
     table->setColumnWidth(6, 90);
     table->horizontalHeader()->setStretchLastSection(true);
+    layout->addWidget(table);
 
     auto *pb = new PaginationBar(page);
     layout->addWidget(pb);
@@ -842,6 +928,7 @@ void PageFactory::buildPropertyInspection(BasePage *page, QVBoxLayout *layout, Q
 
     table->setColumnCount(5);
     table->setHorizontalHeaderLabels({QStringLiteral("巡检员"), QStringLiteral("开始时间"), QStringLiteral("时长(分)"), QStringLiteral("发现问题"), QStringLiteral("状态")});
+    layout->addWidget(table);
     auto *pb = new PaginationBar(page);
     layout->addWidget(pb);
     std::function<void()> loadInspections = [table, searchEdit, statusCombo, emptyHint, pb]()
@@ -934,6 +1021,7 @@ void PageFactory::buildPropertyAnnouncement(BasePage *page, QVBoxLayout *layout,
     table->setColumnWidth(0, 250);
     table->setColumnWidth(5, 90);
     table->horizontalHeader()->setStretchLastSection(true);
+    layout->addWidget(table);
 
     auto *pb = new PaginationBar(page);
     layout->addWidget(pb);
@@ -1145,6 +1233,7 @@ void PageFactory::buildPropertyVisitor(BasePage *page, QVBoxLayout *layout, QTab
     table->setColumnCount(7);
     table->setHorizontalHeaderLabels({QStringLiteral("访客姓名"), QStringLiteral("手机号"), QStringLiteral("拜访业主"), QStringLiteral("来访时间"), QStringLiteral("离开时间"), QStringLiteral("状态"), QStringLiteral("操作")});
     table->setColumnWidth(6, 90);
+    layout->addWidget(table);
 
     auto *pb = new PaginationBar(page);
     layout->addWidget(pb);
@@ -1359,6 +1448,7 @@ void PageFactory::buildPropertyTopic(BasePage *page, QVBoxLayout *layout, QTable
     table->setHorizontalHeaderLabels({QStringLiteral("议题标题"), QStringLiteral("类型"), QStringLiteral("发起人"), QStringLiteral("截止日期"), QStringLiteral("投票结果"), QStringLiteral("状态"), QStringLiteral("操作")});
     table->setColumnWidth(0, 200);
     table->setColumnWidth(6, 90);
+    layout->addWidget(table);
     auto *pb = new PaginationBar(page);
     layout->addWidget(pb);
     // 前向声明：用 shared_ptr 持有处理函数，避免循环依赖
@@ -2111,6 +2201,7 @@ void PageFactory::buildPropertyBilling(BasePage *page, QVBoxLayout *layout, QTab
     table->setColumnCount(6);
     table->setHorizontalHeaderLabels({QStringLiteral("账单编号"), QStringLiteral("房屋"), QStringLiteral("费用类型"), QStringLiteral("金额"), QStringLiteral("账期"), QStringLiteral("状态")});
     table->setColumnWidth(0, 120);
+    layout->addWidget(table);
 
     auto *pb = new PaginationBar(page);
     layout->addWidget(pb);
@@ -2225,6 +2316,7 @@ void PageFactory::buildPropertyIncome(BasePage *page, QVBoxLayout *layout, QTabl
 
     table->setColumnCount(6);
     table->setHorizontalHeaderLabels({QStringLiteral("账期"), QStringLiteral("收入金额"), QStringLiteral("支出金额"), QStringLiteral("结余"), QStringLiteral("公示时间"), QStringLiteral("状态")});
+    layout->addWidget(table);
     auto *pb = new PaginationBar(page);
     layout->addWidget(pb);
     std::function<void()> loadIncomes = [table, searchEdit, statusCombo, emptyHint, pb]()

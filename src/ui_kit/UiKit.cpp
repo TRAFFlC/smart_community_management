@@ -201,7 +201,7 @@ QPushButton* createPillButton(const QString& text, const QString& color, QWidget
     return btn;
 }
 
-QWidget* createActionCell(std::initializer_list<QPushButton*> buttons, QWidget* parent) {
+QWidget* createActionCell(const QList<QPushButton*>& buttons, QWidget* parent) {
     auto* container = new QWidget(parent);
     container->setStyleSheet("background: transparent; border: none;");
     container->setObjectName("actionCell");

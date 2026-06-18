@@ -369,8 +369,8 @@ BasePage *PageFactory::createReportPage(const QString &sub)
             btnRow->addWidget(cancelBtn);
             btnRow->addWidget(okBtn);
             dl->addLayout(btnRow);
-            QObject::QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
-            QObject::QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, table]() {
+            QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+            QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, table]() {
                 exportTableToCsv(table, QStringLiteral("工单统计.csv"), dlg);
             });
             dlg->exec();
@@ -499,8 +499,8 @@ BasePage *PageFactory::createReportPage(const QString &sub)
             btnRow->addWidget(cancelBtn);
             btnRow->addWidget(okBtn);
             dl->addLayout(btnRow);
-            QObject::QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
-            QObject::QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, table]() {
+            QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+            QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, table]() {
                 exportTableToCsv(table, QStringLiteral("事件统计.csv"), dlg);
             });
             dlg->exec();
@@ -612,8 +612,8 @@ BasePage *PageFactory::createReportPage(const QString &sub)
             btnRow->addWidget(cancelBtn);
             btnRow->addWidget(okBtn);
             dl->addLayout(btnRow);
-            QObject::QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
-            QObject::QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, table]() {
+            QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+            QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, table]() {
                 exportTableToCsv(table, QStringLiteral("服务统计.csv"), dlg);
             });
             dlg->exec();

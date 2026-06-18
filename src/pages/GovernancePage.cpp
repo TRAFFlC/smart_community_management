@@ -59,6 +59,14 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
     filterCombo->addItems({QStringLiteral("全部状态"), QStringLiteral("待审核"), QStringLiteral("已审核"), QStringLiteral("已分派"), QStringLiteral("处理中"), QStringLiteral("已完成"), QStringLiteral("已归档")});
     filterCombo->setFixedWidth(130);
     tbLayout->addWidget(filterCombo);
+
+    auto *exportBtn = new QPushButton(QStringLiteral("导出"), toolbar);
+    exportBtn->setCursor(Qt::PointingHandCursor);
+    tbLayout->addWidget(exportBtn);
+
+    auto *myTasksCheck = new QCheckBox(QStringLiteral("只看我的"), toolbar);
+    tbLayout->addWidget(myTasksCheck);
+
     tbLayout->addStretch();
     auto *newBtn = new QPushButton(QStringLiteral("+ 上报事件"), toolbar);
     newBtn->setProperty("cssClass", "primary");
@@ -77,8 +85,10 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
     layout->addWidget(pb);
     // 前向声明：用 shared_ptr 持有处理函数，避免循环依赖
     auto evActionHandlerPtr = std::make_shared<std::function<void(qint64, int)>>();
-    std::function<void()> loadEvents = [table, searchEdit, filterCombo, evActionHandlerPtr, emptyHint, pb]()
+    auto loadEventsPtr = std::make_shared<std::function<void()>>();
+    *loadEventsPtr = [page, table, searchEdit, filterCombo, myTasksCheck, evActionHandlerPtr, loadEventsPtr, emptyHint, pb]()
     {
+      auto& loadEvents = *loadEventsPtr;
       table->setRowCount(0);
       QString sql = "SELECT id, event_no, title, event_category, priority, status, reporter_name, create_time, reporter_id, assign_to FROM ge_event WHERE del_flag = 0";
       // 注入数据权限过滤（居民只看本人，社区/街道按组织范围）
@@ -86,6 +96,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
       sql += scopeFilter.first;
       QString searchText = searchEdit->text().trimmed();
       int filterIdx = filterCombo->currentIndex();
+      bool onlyMine = myTasksCheck->isChecked();
       if (!searchText.isEmpty())
       {
         sql += " AND (event_no LIKE :search OR title LIKE :search)";
@@ -93,6 +104,10 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
       if (filterIdx > 0)
       {
         sql += " AND status = :status";
+      }
+      if (onlyMine)
+      {
+        sql += " AND assign_to = :myId";
       }
       sql += " ORDER BY create_time DESC";
       sql += " LIMIT :pageSize OFFSET :offset";
@@ -111,6 +126,8 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         int sm[] = {0, 0, 1, 2, 3, 4, 5, 6};
         cntBinds << ":status" << sm[filterIdx];
       }
+      if (onlyMine)
+        cntBinds << ":myId" << AuthService::instance().currentUser().id;
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
       pb->setTotalCount(executeCountQuery(sql, cntBinds));
 
@@ -129,6 +146,8 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         int statusMap[] = {-1, 0, 1, 2, 3, 4, 6};
         q.bindValue(":status", statusMap[filterIdx]);
       }
+      if (onlyMine)
+        q.bindValue(":myId", AuthService::instance().currentUser().id);
       q.bindValue(":pageSize", pb->pageSize());
       q.bindValue(":offset", pb->offset());
       q.exec();
@@ -139,59 +158,126 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         table->setItem(row, 0, new QTableWidgetItem(q.value(1).toString()));
         table->setItem(row, 1, new QTableWidgetItem(q.value(2).toString()));
         table->setItem(row, 2, new QTableWidgetItem(EventCategory::label(q.value(3).toInt())));
-        table->setItem(row, 3, new QTableWidgetItem(EventPriority::label(q.value(4).toInt())));
+        QColor priColor(EventPriority::color(q.value(4).toInt()));
+        auto *priItem = createTagTableItem(EventPriority::label(q.value(4).toInt()), QColor(priColor.red(), priColor.green(), priColor.blue(), 30), priColor);
+        table->setItem(row, 3, priItem);
         QColor evColor(EventStatus::color(q.value(5).toInt()));
         auto *statusItem = createTagTableItem(EventStatus::label(q.value(5).toInt()), QColor(evColor.red(), evColor.green(), evColor.blue(), 30), evColor);
         table->setItem(row, 4, statusItem);
         table->setItem(row, 5, new QTableWidgetItem(q.value(6).toString()));
         table->setItem(row, 6, new QTableWidgetItem(q.value(7).toDateTime().toString("yyyy-MM-dd hh:mm")));
-        // Action text item - 根据角色权限决定是否显示操作按钮
+        // Action buttons - 根据角色权限决定是否显示操作按钮
         int sts = q.value(5).toInt();
         qint64 evId = q.value(0).toLongLong();
         qint64 reporterId = q.value(8).toLongLong();
         qint64 assigneeId = q.value(9).toLongLong();
-        QString actionText;
-        QString actionColor;
+        const auto& curUser = AuthService::instance().currentUser();
+        bool canEdit = (sts <= 1) && (reporterId == curUser.id);
+        QList<QPushButton*> actionBtns;
+        if (canEdit) {
+            auto* editBtn = new QPushButton(QStringLiteral("编辑"));
+            editBtn->setProperty("cssClass", "text");
+            editBtn->setCursor(Qt::PointingHandCursor);
+            QObject::connect(editBtn, &QPushButton::clicked, page, [page, evId, loadEventsPtr]() {
+                // 查询当前事件数据
+                QSqlQuery eq(DatabaseManager::instance().database());
+                eq.prepare("SELECT title, event_category, priority, description, location FROM ge_event WHERE id = :id AND del_flag = 0");
+                eq.bindValue(":id", evId);
+                if (!eq.exec() || !eq.next()) return;
+                QString curTitle = eq.value(0).toString();
+                int curCat = eq.value(1).toInt();
+                int curPrio = eq.value(2).toInt();
+                QString curDesc = eq.value(3).toString();
+                QString curLoc = eq.value(4).toString();
+
+                QDialog dlg(page);
+                dlg.setWindowTitle(QStringLiteral("编辑事件"));
+                dlg.setMinimumWidth(500);
+                auto* dlgLayout = new QVBoxLayout(&dlg);
+                dlgLayout->setContentsMargins(24, 20, 24, 20);
+                auto* formTitle = new QLabel(QStringLiteral("修改事件信息"), &dlg);
+                formTitle->setStyleSheet("font-size: 16px; font-weight: 600; color: #0f172a;");
+                dlgLayout->addWidget(formTitle);
+                dlgLayout->addSpacing(8);
+                auto* form = new QFormLayout(&dlg);
+                form->setSpacing(12);
+                form->setLabelAlignment(Qt::AlignRight);
+                auto* titleEdit = new QLineEdit(curTitle, &dlg);
+                form->addRow(QStringLiteral("标题:"), titleEdit);
+                auto* catCombo = new QComboBox(&dlg);
+                catCombo->addItems({QStringLiteral("民生服务"), QStringLiteral("环境卫生"), QStringLiteral("设施安全"), QStringLiteral("邻里纠纷"), QStringLiteral("特殊帮扶"), QStringLiteral("市容秩序"), QStringLiteral("突发预警")});
+                if (curCat >= 1 && curCat <= 7) catCombo->setCurrentIndex(curCat - 1);
+                form->addRow(QStringLiteral("类别:"), catCombo);
+                auto* prioCombo = new QComboBox(&dlg);
+                prioCombo->addItems({QStringLiteral("一般"), QStringLiteral("重要"), QStringLiteral("紧急"), QStringLiteral("特急")});
+                if (curPrio >= 1 && curPrio <= 4) prioCombo->setCurrentIndex(curPrio - 1);
+                form->addRow(QStringLiteral("优先级:"), prioCombo);
+                auto* descEdit = new QTextEdit(&dlg);
+                descEdit->setPlainText(curDesc);
+                descEdit->setFixedHeight(80);
+                form->addRow(QStringLiteral("描述:"), descEdit);
+                auto* locEdit = new QLineEdit(curLoc, &dlg);
+                form->addRow(QStringLiteral("地点:"), locEdit);
+                dlgLayout->addLayout(form);
+                dlgLayout->addSpacing(12);
+                auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+                buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("保存"));
+                buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("取消"));
+                QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+                QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, [&]() {
+                    if (titleEdit->text().trimmed().isEmpty()) {
+                        QMessageBox::warning(&dlg, QStringLiteral("提示"), QStringLiteral("请填写标题"));
+                        return;
+                    }
+                    const auto& editUser = AuthService::instance().currentUser();
+                    DatabaseManager::instance().update("ge_event", evId, {
+                        {"title", titleEdit->text().trimmed()},
+                        {"event_category", catCombo->currentIndex() + 1},
+                        {"priority", prioCombo->currentIndex() + 1},
+                        {"description", descEdit->toPlainText().trimmed()},
+                        {"location", locEdit->text().trimmed()},
+                        {"update_by", editUser.id},
+                        {"update_time", QDateTime::currentDateTime()}
+                    });
+                    UiKit::showToast(QStringLiteral("事件已更新"), page);
+                    dlg.accept();
+                    (*loadEventsPtr)();
+                });
+                dlgLayout->addWidget(buttons);
+                dlg.exec();
+            });
+            actionBtns.append(editBtn);
+        }
         if (canOperateEvent(sts, reporterId, assigneeId))
         {
-          if (sts == 0)
-          {
-            actionText = QStringLiteral("审核");
-            actionColor = "#b45309";
-          }
-          else if (sts == 1)
-          {
-            actionText = QStringLiteral("分派");
-            actionColor = "#b45309";
-          }
-          else if (sts == 2)
-          {
-            actionText = QStringLiteral("处理");
-            actionColor = "#a16207";
-          }
-          else if (sts == 3)
-          {
-            actionText = QStringLiteral("完成");
-            actionColor = "#15803d";
-          }
-          else
-          {
-            actionText = QStringLiteral("--");
-            actionColor = "#64748b";
+          QString actionText;
+          QString actionColor;
+          if (sts == 0) { actionText = QStringLiteral("审核"); actionColor = "#b45309"; }
+          else if (sts == 1) { actionText = QStringLiteral("分派"); actionColor = "#b45309"; }
+          else if (sts == 2) { actionText = QStringLiteral("处理"); actionColor = "#a16207"; }
+          else if (sts == 3) { actionText = QStringLiteral("完成"); actionColor = "#15803d"; }
+          else { actionText = QStringLiteral("--"); actionColor = "#64748b"; }
+          if (actionText != QStringLiteral("--")) {
+            auto* mainBtn = new QPushButton(actionText);
+            mainBtn->setStyleSheet(QString("QPushButton{border:none; color:%1; font-size:12px; font-weight:500; background:transparent; padding:2px 6px;} QPushButton:hover{text-decoration:underline;}").arg(actionColor));
+            mainBtn->setCursor(Qt::PointingHandCursor);
+            QObject::connect(mainBtn, &QPushButton::clicked, page, [evActionHandlerPtr, evId, sts]() {
+                if (*evActionHandlerPtr) (*evActionHandlerPtr)(evId, sts);
+            });
+            actionBtns.append(mainBtn);
           }
         }
-        else
-        {
-          actionText = QStringLiteral("--");
-          actionColor = "#64748b";
+        if (actionBtns.isEmpty()) {
+            table->setItem(row, 7, createActionItem(QStringLiteral("--"), "#64748b", evId, sts));
+        } else {
+            table->setCellWidget(row, 7, createActionCell(actionBtns, table));
         }
-        table->setItem(row, 7, createActionItem(actionText, actionColor, evId, sts));
         row++;
       }
       syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
-    std::function<void(qint64, int)> handleEventAction = [page, loadEvents](qint64 id, int sts)
+    std::function<void(qint64, int)> handleEventAction = [page, loadEventsPtr](qint64 id, int sts)
     {
       const auto &user = AuthService::instance().currentUser();
 
@@ -225,7 +311,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
           return;
         DatabaseManager::instance().update("ge_event", id, {{"status", 1}, {"reviewer_id", user.id}, {"review_time", QDateTime::currentDateTime()}, {"update_by", user.id}, {"update_time", QDateTime::currentDateTime()}});
         showToast(QStringLiteral("事件已审核"), page);
-        loadEvents();
+        (*loadEventsPtr)();
       }
       else if (sts == 1)
       {
@@ -302,7 +388,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
                         QStringLiteral("您有一个新的社区事件待处理"), 2, "event", (int)id);
                     showToast(QStringLiteral("事件分派成功"), page);
                     dlg.accept();
-                    loadEvents(); });
+                    (*loadEventsPtr)(); });
         dlgLayout->addWidget(buttons);
         dlg.exec();
       }
@@ -317,7 +403,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         DatabaseManager::instance().update("ge_event", id, {{"status", 3}, {"update_by", user.id}, {"update_time", QDateTime::currentDateTime()}});
         DatabaseManager::instance().insert("ge_event_flow", {{"event_id", id}, {"action", QStringLiteral("开始处理")}, {"operator_id", user.id}, {"operator_name", user.nickname.isEmpty() ? user.username : user.nickname}, {"from_status", 2}, {"to_status", 3}, {"action_time", QDateTime::currentDateTime()}});
         showToast(QStringLiteral("事件已开始处理"), page);
-        loadEvents();
+        (*loadEventsPtr)();
       }
       else if (sts == 3)
       {
@@ -385,7 +471,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
                     }
                     showToast(QStringLiteral("事件已完成"), page);
                     dlg.accept();
-                    loadEvents(); });
+                    (*loadEventsPtr)(); });
         dlgLayout->addWidget(buttons);
         dlg.exec();
       }
@@ -399,13 +485,17 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
             qint64 id = item->data(Qt::UserRole).toLongLong();
             int sts = item->data(Qt::UserRole + 2).toInt();
             if (*evActionHandlerPtr) (*evActionHandlerPtr)(id, sts); });
-    loadEvents();
+    (*loadEventsPtr)();
     QObject::connect(table, &QTableWidget::cellEntered, page, [=](int r, int c)
             { table->viewport()->setCursor(c == 7 ? Qt::PointingHandCursor : Qt::ArrowCursor); });
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
-            { loadEvents(); });
+            { (*loadEventsPtr)(); });
     QObject::connect(filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), page, [=]()
-            { loadEvents(); });
+            { (*loadEventsPtr)(); });
+    QObject::connect(myTasksCheck, &QCheckBox::toggled, page, [=]()
+            { (*loadEventsPtr)(); });
+    QObject::connect(exportBtn, &QPushButton::clicked, page, [table, page]()
+            { exportTableToCsv(table, QStringLiteral("事件列表.csv"), page); });
 
     // New event dialog
     QObject::connect(newBtn, &QPushButton::clicked, page, [=]()
@@ -439,6 +529,66 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
             locEdit->setPlaceholderText(QStringLiteral("事件发生地点"));
             form->addRow(QStringLiteral("地点:"), locEdit);
             dlgLayout->addLayout(form);
+            dlgLayout->addSpacing(8);
+
+            // 图片上传区域
+            QStringList selectedImages;
+            auto* imgLabel = new QLabel(QStringLiteral("附件图片（可选，最多5张）"), &dlg);
+            imgLabel->setStyleSheet("font-size: 13px; color: #64748b; background: transparent;");
+            dlgLayout->addWidget(imgLabel);
+            auto* imgListWidget = new QWidget(&dlg);
+            auto* imgListLayout = new QVBoxLayout(imgListWidget);
+            imgListLayout->setContentsMargins(0, 0, 0, 0);
+            imgListLayout->setSpacing(4);
+            dlgLayout->addWidget(imgListWidget);
+
+            std::function<void()> refreshImageList;
+            refreshImageList = [&]() {
+                QLayoutItem* child;
+                while ((child = imgListLayout->takeAt(0)) != nullptr) {
+                    if (child->widget()) child->widget()->deleteLater();
+                    delete child;
+                }
+                for (int i = 0; i < selectedImages.size(); ++i) {
+                    auto* row = new QWidget(imgListWidget);
+                    auto* rowLay = new QHBoxLayout(row);
+                    rowLay->setContentsMargins(0, 0, 0, 0);
+                    auto* nameLabel = new QLabel(QFileInfo(selectedImages[i]).fileName(), row);
+                    nameLabel->setStyleSheet("font-size: 12px; color: #334155; background: transparent;");
+                    rowLay->addWidget(nameLabel);
+                    rowLay->addStretch();
+                    auto* rmBtn = new QPushButton(QStringLiteral("×"), row);
+                    rmBtn->setFixedSize(20, 20);
+                    rmBtn->setStyleSheet("QPushButton{border:none; color:#b91c1c; font-size:14px; font-weight:bold; background:transparent;} QPushButton:hover{background:#fee2e2; border-radius:3px;}");
+                    rmBtn->setCursor(Qt::PointingHandCursor);
+                    int idx = i;
+                    QObject::connect(rmBtn, &QPushButton::clicked, [&, idx]() {
+                        selectedImages.removeAt(idx);
+                        refreshImageList();
+                    });
+                    rowLay->addWidget(rmBtn);
+                    imgListLayout->addWidget(row);
+                }
+            };
+
+            auto* addImgBtn = new QPushButton(QStringLiteral("+ 添加图片"), &dlg);
+            addImgBtn->setCursor(Qt::PointingHandCursor);
+            addImgBtn->setStyleSheet("QPushButton{border:1px dashed #cbd5e1; border-radius:4px; padding:6px 16px; color:#64748b; background:#f8fafc; font-size:13px;} QPushButton:hover{border-color:#b45309; color:#b45309;}");
+            QObject::connect(addImgBtn, &QPushButton::clicked, [&]() {
+                if (selectedImages.size() >= 5) {
+                    QMessageBox::warning(&dlg, QStringLiteral("提示"), QStringLiteral("最多上传5张图片"));
+                    return;
+                }
+                QStringList files = QFileDialog::getOpenFileNames(&dlg, QStringLiteral("选择图片"), QString(),
+                    QStringLiteral("图片文件 (*.jpg *.jpeg *.png *.bmp *.gif);;所有文件 (*)"));
+                for (const QString& f : files) {
+                    if (selectedImages.size() >= 5) break;
+                    if (!selectedImages.contains(f)) selectedImages.append(f);
+                }
+                refreshImageList();
+            });
+            dlgLayout->addWidget(addImgBtn);
+
             dlgLayout->addSpacing(12);
             auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
             buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("提交"));
@@ -458,13 +608,14 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
                     {"priority", prioCombo->currentIndex() + 1},
                     {"description", descEdit->toPlainText().trimmed()},
                     {"location", locEdit->text().trimmed()},
+                    {"images", selectedImages.isEmpty() ? QVariant() : selectedImages.join(",")},
                     {"reporter_id", user.id}, {"reporter_name", user.nickname.isEmpty() ? user.username : user.nickname},
                     {"status", 0}, {"source", 1},
                     {"create_by", user.id}, {"create_time", QDateTime::currentDateTime()}
                 });
                 showToast(QStringLiteral("事件上报成功"), page);
                 dlg.accept();
-                loadEvents();
+                (*loadEventsPtr)();
             });
             dlgLayout->addWidget(buttons);
             dlg.exec(); });

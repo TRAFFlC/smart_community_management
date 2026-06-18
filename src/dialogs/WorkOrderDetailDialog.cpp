@@ -4,6 +4,8 @@
 #include "../models/Constants.h"
 
 #include <QDateTime>
+#include <QFile>
+#include <QFileInfo>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -20,7 +22,7 @@ void WorkOrderDetailDialog::show(QWidget* parent, qint64 workOrderId) {
     QSqlQuery q(DatabaseManager::instance().database());
     q.prepare("SELECT id, order_no, title, order_type, priority, status, reporter_name, "
               "reporter_phone, description, location_desc, create_time, accept_time, "
-              "assign_to, assign_time, finish_time, close_time, result_desc "
+              "assign_to, assign_time, finish_time, close_time, result_desc, images "
               "FROM wo_work_order WHERE id = :id AND del_flag = 0");
     q.bindValue(":id", workOrderId);
     if (!q.exec() || !q.next()) {
@@ -44,6 +46,7 @@ void WorkOrderDetailDialog::show(QWidget* parent, qint64 workOrderId) {
     QDateTime finishTime = q.value(14).toDateTime();
     QDateTime closeTime = q.value(15).toDateTime();
     QString resultDesc = q.value(16).toString();
+    QString imagesStr = q.value(17).toString();
 
     QString assigneeName;
     if (assignTo > 0) {
@@ -128,6 +131,41 @@ void WorkOrderDetailDialog::show(QWidget* parent, qint64 workOrderId) {
         " padding: 10px; font-size: 13px; color: #0f172a; }");
     descEdit->setFixedHeight(80);
     dlgLayout->addWidget(descEdit);
+
+    // ========== 附件图片区 ==========
+    QStringList imagePaths = imagesStr.split(",", Qt::SkipEmptyParts);
+    if (!imagePaths.isEmpty()) {
+        auto* imgTitle = new QLabel(QStringLiteral("附件图片"), &dlg);
+        imgTitle->setStyleSheet("font-size: 14px; font-weight: 600; color: #0f172a; border-left: 3px solid #2563eb; padding-left: 8px;");
+        dlgLayout->addWidget(imgTitle);
+
+        auto* imgContainer = new QWidget(&dlg);
+        imgContainer->setStyleSheet("background: #fafafa; border: 1px solid #e2e8f0; border-radius: 6px;");
+        auto* imgLayout = new QHBoxLayout(imgContainer);
+        imgLayout->setContentsMargins(12, 8, 12, 8);
+        imgLayout->setSpacing(8);
+
+        for (const QString& path : imagePaths) {
+            QString trimmed = path.trimmed();
+            if (trimmed.isEmpty()) continue;
+            QPixmap pix(trimmed);
+            if (!pix.isNull()) {
+                auto* imgLabel = new QLabel(imgContainer);
+                imgLabel->setFixedSize(80, 80);
+                imgLabel->setScaledContents(true);
+                imgLabel->setPixmap(pix.scaled(80, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                imgLabel->setStyleSheet("border: 1px solid #e2e8f0; border-radius: 4px; background: #ffffff;");
+                imgLabel->setToolTip(QFileInfo(trimmed).fileName());
+                imgLayout->addWidget(imgLabel);
+            } else {
+                auto* nameLabel = new QLabel(QFileInfo(trimmed).fileName(), imgContainer);
+                nameLabel->setStyleSheet("color: #64748b; font-size: 12px; background: transparent; padding: 4px 8px;");
+                imgLayout->addWidget(nameLabel);
+            }
+        }
+        imgLayout->addStretch();
+        dlgLayout->addWidget(imgContainer);
+    }
 
     // ========== 状态时间线区 ==========
     auto* timelineTitle = new QLabel(QStringLiteral("状态时间线"), &dlg);

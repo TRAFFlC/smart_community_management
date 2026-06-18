@@ -132,6 +132,7 @@ void LoginWidget::setupUI() {
 
     m_usernameEdit = new QLineEdit(formPanel);
     m_usernameEdit->setPlaceholderText(QStringLiteral("请输入账号"));
+    // [开发阶段] 硬编码默认凭据，便于测试登录。正式发布前移除，参见 .trae/rules/project_rules.md §硬编码凭据
     m_usernameEdit->setText(QStringLiteral("admin"));
     m_usernameEdit->setFixedHeight(46);
     m_usernameEdit->setStyleSheet(R"(
@@ -153,6 +154,7 @@ void LoginWidget::setupUI() {
 
     m_passwordEdit = new QLineEdit(formPanel);
     m_passwordEdit->setPlaceholderText(QStringLiteral("请输入密码"));
+    // [开发阶段] 硬编码默认凭据，便于测试登录。正式发布前移除，参见 .trae/rules/project_rules.md §硬编码凭据
     m_passwordEdit->setText(QStringLiteral("admin123"));
     m_passwordEdit->setEchoMode(QLineEdit::Password);
     m_passwordEdit->setFixedHeight(46);

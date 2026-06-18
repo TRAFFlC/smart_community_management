@@ -75,8 +75,8 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
     btnRow->addWidget(cancelBtn);
     btnRow->addWidget(okBtn);
     dlgLayout->addLayout(btnRow);
-    QObject::QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
-    QObject::QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, onOk]()
+    QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+    QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, onOk]()
                      {
             if (onOk()) dlg->accept(); });
   };

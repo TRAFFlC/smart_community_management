@@ -51,7 +51,7 @@ QPushButton* createPillButton(const QString& text, const QString& color = QStrin
                               QWidget* parent = nullptr);
 
 // 表格操作列容器
-QWidget* createActionCell(std::initializer_list<QPushButton*> buttons, QWidget* parent = nullptr);
+QWidget* createActionCell(const QList<QPushButton*>& buttons, QWidget* parent = nullptr);
 
 // 表格操作文本项
 QTableWidgetItem* createActionItem(const QString& text, const QString& color,

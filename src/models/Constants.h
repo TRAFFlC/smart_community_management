@@ -167,6 +167,14 @@ namespace WorkOrderPriority {
             default: return QStringLiteral("未知");
         }
     }
+    inline QString color(int v) {
+        switch(v) {
+            case Normal: return "#64748b";
+            case Urgent: return "#d97706";
+            case Critical: return "#b91c1c";
+            default: return "#64748b";
+        }
+    }
 }
 
 namespace WorkOrderStatus {
@@ -226,6 +234,15 @@ namespace EventPriority {
             case Urgent: return QStringLiteral("紧急");
             case Critical: return QStringLiteral("特急");
             default: return QStringLiteral("未知");
+        }
+    }
+    inline QString color(int v) {
+        switch(v) {
+            case Normal: return "#64748b";
+            case Important: return "#2563eb";
+            case Urgent: return "#d97706";
+            case Critical: return "#b91c1c";
+            default: return "#64748b";
         }
     }
 }
