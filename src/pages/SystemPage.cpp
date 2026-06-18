@@ -1,7 +1,6 @@
 #include "pages/PageFactory.h"
 #include "PagesCommon.h"
 
-using namespace UiKit;
 // ========== System Pages ==========
 BasePage *PageFactory::createSystemPage(const QString &sub)
 {
@@ -23,7 +22,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
     sysEmptyText = QStringLiteral("暂无日志记录");
   else
     sysEmptyText = QStringLiteral("暂无数据");
-  auto *emptyHint = createEmptyHintLabel(sysEmptyText, page);
+  auto *emptyHint = UiKit::createEmptyHintLabel(sysEmptyText, page);
 
   // ========== 通用对话框辅助函数 ==========
   // 创建标准表单对话框（固定宽度 480px，带标题和 QFormLayout）
@@ -100,7 +99,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
     table->setAlternatingRowColors(true);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
-    table->setStyleSheet(TABLE_STYLE);
+    table->setStyleSheet(UiKit::TABLE_STYLE);
     table->setShowGrid(false);
     table->verticalHeader()->setVisible(false);
 
@@ -286,7 +285,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("新增用户: %1").arg(username)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("用户创建成功"), page);
+                    UiKit::showToast(QStringLiteral("用户创建成功"), page);
                 } else {
                     QVariantMap data{
                         {"username", username}, {"real_name", realName}, {"nickname", realName},
@@ -308,7 +307,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("编辑用户: %1").arg(username)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("用户更新成功"), page);
+                    UiKit::showToast(QStringLiteral("用户更新成功"), page);
                 }
                 reload();
                 return true; });
@@ -357,7 +356,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                     {"operation", QStringLiteral("重置用户密码: %1").arg(username)},
                     {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                 });
-                showToast(QStringLiteral("密码重置成功"), page);
+                UiKit::showToast(QStringLiteral("密码重置成功"), page);
                 reload();
                 return true; });
       dlg->exec();
@@ -383,7 +382,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                                       {"operation", QStringLiteral("%1用户: %2").arg(action).arg(username)},
                                       {"status", 0},
                                       {"operation_time", QDateTime::currentDateTime()}});
-      showToast(QStringLiteral("已%1用户").arg(action), page);
+      UiKit::showToast(QStringLiteral("已%1用户").arg(action), page);
       reload();
     };
 
@@ -419,8 +418,8 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
         table->setItem(row, 2, new QTableWidgetItem(Utils::maskPhone(q.value(3).toString())));
         table->setItem(row, 3, new QTableWidgetItem(UserType::label(q.value(4).toInt())));
         auto *statusItem = userSts == UserStatus::Normal
-                               ? createTagTableItem(UserStatus::label(userSts), QColor("#f0fdf4"), QColor("#15803d"))
-                               : createTagTableItem(UserStatus::label(userSts), QColor("#fef2f2"), QColor("#b91c1c"));
+                               ? UiKit::createTagTableItem(UserStatus::label(userSts), QColor("#f0fdf4"), QColor("#15803d"))
+                               : UiKit::createTagTableItem(UserStatus::label(userSts), QColor("#fef2f2"), QColor("#b91c1c"));
         table->setItem(row, 4, statusItem);
         QSqlQuery rq(DatabaseManager::instance().database());
         rq.prepare("SELECT r.role_name FROM sys_role r "
@@ -449,7 +448,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
         row++;
       }
       table->setSortingEnabled(true);
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
     };
     loadUsers();
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -491,7 +490,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
     table->setAlternatingRowColors(true);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
-    table->setStyleSheet(TABLE_STYLE);
+    table->setStyleSheet(UiKit::TABLE_STYLE);
     table->setShowGrid(false);
     table->verticalHeader()->setVisible(false);
 
@@ -710,7 +709,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("新增角色: %1").arg(name)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("角色创建成功"), page);
+                    UiKit::showToast(QStringLiteral("角色创建成功"), page);
                 } else {
                     db.update("sys_role", roleId, {
                         {"role_name", name}, {"role_key", key}, {"role_domain", domain},
@@ -731,7 +730,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("编辑角色: %1").arg(name)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("角色更新成功"), page);
+                    UiKit::showToast(QStringLiteral("角色更新成功"), page);
                 }
                 reload();
                 return true; });
@@ -770,8 +769,8 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
         table->setItem(row, 3, new QTableWidgetItem(DataScope::label(q.value(4).toInt())));
         int st = q.value(5).toInt();
         auto *stItem = st == 0
-                           ? createTagTableItem(QStringLiteral("正常"), QColor("#f0fdf4"), QColor("#15803d"))
-                           : createTagTableItem(QStringLiteral("禁用"), QColor("#fef2f2"), QColor("#b91c1c"));
+                           ? UiKit::createTagTableItem(QStringLiteral("正常"), QColor("#f0fdf4"), QColor("#15803d"))
+                           : UiKit::createTagTableItem(QStringLiteral("禁用"), QColor("#fef2f2"), QColor("#b91c1c"));
         table->setItem(row, 4, stItem);
         auto *editItem = new QTableWidgetItem(QStringLiteral("编辑"));
         editItem->setForeground(QColor("#b45309"));
@@ -786,7 +785,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
         row++;
       }
       table->setSortingEnabled(true);
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
     };
     loadRoles();
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -825,7 +824,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
     tree->setColumnWidth(3, 160);
     tree->setColumnWidth(4, 60);
     tree->setColumnWidth(5, 160);
-    tree->setStyleSheet(TABLE_STYLE);
+    tree->setStyleSheet(UiKit::TABLE_STYLE);
 
     auto *toolbar = new QWidget(page);
     toolbar->setStyleSheet("background:#ffffff; border-radius:6px; padding:4px 8px; border:1px solid #e2e8f0;");
@@ -964,7 +963,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("新增菜单: %1").arg(name)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("菜单创建成功"), page);
+                    UiKit::showToast(QStringLiteral("菜单创建成功"), page);
                 } else {
                     // sys_menu 没有 update_time 字段，直接更新
                     QSqlQuery uq(db.database());
@@ -986,7 +985,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("编辑菜单: %1").arg(name)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("菜单更新成功"), page);
+                    UiKit::showToast(QStringLiteral("菜单更新成功"), page);
                 }
                 reload();
                 return true; });
@@ -1008,7 +1007,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
       uq.exec();
       qint64 currentUserId = AuthService::instance().currentUser().id;
       db.insert("sys_operation_log", {{"user_id", currentUserId}, {"username", AuthService::instance().currentUser().username}, {"module", QStringLiteral("菜单管理")}, {"operation", QStringLiteral("删除菜单: %1").arg(name)}, {"status", 0}, {"operation_time", QDateTime::currentDateTime()}});
-      showToast(QStringLiteral("菜单已删除"), page);
+      UiKit::showToast(QStringLiteral("菜单已删除"), page);
       reload();
     };
 
@@ -1089,7 +1088,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
     table->setAlternatingRowColors(true);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
-    table->setStyleSheet(TABLE_STYLE);
+    table->setStyleSheet(UiKit::TABLE_STYLE);
     table->setShowGrid(false);
     table->verticalHeader()->setVisible(false);
 
@@ -1206,7 +1205,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("新增字典类型: %1").arg(type)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("字典类型创建成功"), page);
+                    UiKit::showToast(QStringLiteral("字典类型创建成功"), page);
                 } else {
                     QString oldType;
                     QSqlQuery oq(db.database());
@@ -1236,7 +1235,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("编辑字典类型: %1").arg(type)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("字典类型更新成功"), page);
+                    UiKit::showToast(QStringLiteral("字典类型更新成功"), page);
                 }
                 reload();
                 return true; });
@@ -1342,7 +1341,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("新增字典项: %1/%2").arg(dtype).arg(label)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("字典项创建成功"), page);
+                    UiKit::showToast(QStringLiteral("字典项创建成功"), page);
                 } else {
                     QSqlQuery uq(db.database());
                     uq.prepare("UPDATE sys_dict_data SET dict_type=:t, dict_label=:l, dict_value=:v, sort_order=:s, status=:st WHERE id=:id");
@@ -1359,7 +1358,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                         {"operation", QStringLiteral("编辑字典项: %1/%2").arg(dtype).arg(label)},
                         {"status", 0}, {"operation_time", QDateTime::currentDateTime()}
                     });
-                    showToast(QStringLiteral("字典项更新成功"), page);
+                    UiKit::showToast(QStringLiteral("字典项更新成功"), page);
                 }
                 reload();
                 return true; });
@@ -1412,7 +1411,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
         row++;
       }
       table->setSortingEnabled(true);
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
     };
     loadDicts();
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -1444,7 +1443,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
     table->setAlternatingRowColors(true);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
-    table->setStyleSheet(TABLE_STYLE);
+    table->setStyleSheet(UiKit::TABLE_STYLE);
     table->setShowGrid(false);
     table->verticalHeader()->setVisible(false);
 
@@ -1598,7 +1597,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
         row++;
       }
       table->setSortingEnabled(true);
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
 
       // 更新分页控件
       pageLabel->setText(QStringLiteral("第 %1/%2 页").arg(pageState->currentPage).arg(pageState->totalPages));
@@ -1655,8 +1654,8 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
   // ========================================================================
   if (sub == "ai")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_robot"), QStringLiteral("智能问答助手"),
-                                       QStringLiteral("输入您的问题，智能助手将为您提供解答"), moduleColor("ai"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_robot"), QStringLiteral("智能问答助手"),
+                                       QStringLiteral("输入您的问题，智能助手将为您提供解答"), UiKit::moduleColor("ai"), page));
     // API 状态指示（每次进入页面重新加载配置，确保管理员配置后所有用户可见）
     auto &aiSvc = AIService::instance();
     aiSvc.reloadConfig();
@@ -1777,7 +1776,7 @@ BasePage *PageFactory::createSystemPage(const QString &sub)
                     }
                     ai.setApiKey(newKey);
                     ai.setModel(modelCombo->currentText().trimmed());
-                    showToast(QStringLiteral("AI 配置已保存到数据库"), page);
+                    UiKit::showToast(QStringLiteral("AI 配置已保存到数据库"), page);
                 } });
     }
     quickLayout->addStretch();

@@ -30,17 +30,7 @@
 #include <QRadioButton>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
-#include <QChart>
-#include <QChartView>
-#include <QPieSeries>
-#include <QBarSeries>
-#include <QBarSet>
-#include <QLineSeries>
-#include <QScatterSeries>
-#include <QCategoryAxis>
-#include <QValueAxis>
 #include <QToolTip>
-#include <QtCharts>
 #include <QFileDialog>
 #include <QFile>
 #include <QTextStream>

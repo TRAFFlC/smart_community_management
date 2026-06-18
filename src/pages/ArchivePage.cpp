@@ -1,7 +1,6 @@
 #include "pages/PageFactory.h"
 #include "PagesCommon.h"
 
-using namespace UiKit;
 // ========== Archive Pages ==========
 BasePage *PageFactory::createArchivePage(const QString &sub)
 {
@@ -13,7 +12,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
   table->setAlternatingRowColors(true);
   table->horizontalHeader()->setStretchLastSection(true);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
-  table->setStyleSheet(TABLE_STYLE);
+  table->setStyleSheet(UiKit::TABLE_STYLE);
   table->setShowGrid(false);
   table->verticalHeader()->setVisible(false);
   table->setSortingEnabled(true);
@@ -40,11 +39,11 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
     archiveEmptyText = QStringLiteral("暂无关怀对象");
   else
     archiveEmptyText = QStringLiteral("暂无数据");
-  auto *emptyHint = createEmptyHintLabel(archiveEmptyText, page);
+  auto *emptyHint = UiKit::createEmptyHintLabel(archiveEmptyText, page);
 
   if (sub == "org")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_building"), QStringLiteral("组织管理"), QStringLiteral("管理街道、社区、物业、业委会等组织架构"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_building"), QStringLiteral("组织管理"), QStringLiteral("管理街道、社区、物业、业委会等组织架构"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
     // Toolbar
     auto *toolbar = new QWidget(page);
@@ -94,7 +93,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
       if (typeFilter >= 0)
         cntBinds << ":type" << (typeFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       q.prepare(sql);
       if (!searchText.isEmpty())
@@ -114,7 +113,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
         table->setItem(row, 3, new QTableWidgetItem(q.value(3).toString()));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     loadOrgs();
@@ -125,7 +124,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
   }
   else if (sub == "estate")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_home"), QStringLiteral("小区管理"), QStringLiteral("管理小区基本信息、楼栋和户数配置"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_home"), QStringLiteral("小区管理"), QStringLiteral("管理小区基本信息、楼栋和户数配置"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
     // Toolbar
     auto *toolbar = new QWidget(page);
@@ -177,7 +176,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
         table->setItem(row, 4, new QTableWidgetItem(q.value(4).toString()));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
     };
     loadEstates();
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -187,7 +186,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
   }
   else if (sub == "house")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_home"), QStringLiteral("房屋管理"), QStringLiteral("管理房屋信息、楼层、户型和居住状态"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_home"), QStringLiteral("房屋管理"), QStringLiteral("管理房屋信息、楼层、户型和居住状态"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
     // Toolbar
     auto *toolbar = new QWidget(page);
@@ -235,7 +234,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
       if (statusFilter >= 0)
         cntBinds << ":status" << (statusFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       q.prepare(sql);
       if (!searchText.isEmpty())
@@ -276,11 +275,11 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
           hsFg = QColor("#d97706");
           break;
         }
-        auto *houseStsItem = createTagTableItem(hsText, hsBg, hsFg);
+        auto *houseStsItem = UiKit::createTagTableItem(hsText, hsBg, hsFg);
         table->setItem(row, 5, houseStsItem);
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     loadHouses();
@@ -291,7 +290,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
   }
   else if (sub == "resident")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_people"), QStringLiteral("居民管理"), QStringLiteral("管理居民档案、联系方式和基本信息"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_people"), QStringLiteral("居民管理"), QStringLiteral("管理居民档案、联系方式和基本信息"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
     // Toolbar
     auto *toolbar = new QWidget(page);
@@ -343,7 +342,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
         table->setItem(row, 4, new QTableWidgetItem(q.value(4).toString()));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
     };
     loadResidents();
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -353,7 +352,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
   }
   else if (sub == "vehicle")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_car"), QStringLiteral("车辆管理"), QStringLiteral("管理小区车辆登记、类型和停车信息"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_car"), QStringLiteral("车辆管理"), QStringLiteral("管理小区车辆登记、类型和停车信息"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
     // Toolbar
     auto *toolbar = new QWidget(page);
@@ -406,7 +405,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
         table->setItem(row, 3, new QTableWidgetItem(VehicleType::label(q.value(3).toInt())));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
     };
     loadVehicles();
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -416,7 +415,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
   }
   else if (sub == "facility")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_tool"), QStringLiteral("设施管理"), QStringLiteral("管理电梯、消防、监控等公共设施"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_tool"), QStringLiteral("设施管理"), QStringLiteral("管理电梯、消防、监控等公共设施"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
     // Toolbar
     auto *toolbar = new QWidget(page);
@@ -470,12 +469,12 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
         table->setItem(row, 3, new QTableWidgetItem(q.value(3).toString()));
         int facSts = q.value(4).toInt();
         auto *facStsItem = facSts == 0
-                               ? createTagTableItem(QStringLiteral("正常"), QColor("#f0fdf4"), QColor("#15803d"))
-                               : createTagTableItem(QStringLiteral("故障"), QColor("#fef2f2"), QColor("#b91c1c"));
+                               ? UiKit::createTagTableItem(QStringLiteral("正常"), QColor("#f0fdf4"), QColor("#15803d"))
+                               : UiKit::createTagTableItem(QStringLiteral("故障"), QColor("#fef2f2"), QColor("#b91c1c"));
         table->setItem(row, 4, facStsItem);
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
     };
     loadFacilities();
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -485,7 +484,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
   }
   else if (sub == "grid")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_route"), QStringLiteral("网格管理"), QStringLiteral("管理社区网格划分和网格员配置"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_route"), QStringLiteral("网格管理"), QStringLiteral("管理社区网格划分和网格员配置"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
     // Toolbar
     auto *toolbar = new QWidget(page);
@@ -536,7 +535,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
         table->setItem(row, 3, new QTableWidgetItem(q.value(3).toString()));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
     };
     loadGrids();
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -546,7 +545,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
   }
   else if (sub == "special")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_heart"), QStringLiteral("特殊群体"), QStringLiteral("管理独居老人、残疾人等特殊群体关怀"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_heart"), QStringLiteral("特殊群体"), QStringLiteral("管理独居老人、残疾人等特殊群体关怀"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
     // Toolbar
     auto *toolbar = new QWidget(page);
@@ -600,7 +599,7 @@ BasePage *PageFactory::createArchivePage(const QString &sub)
         table->setItem(row, 3, new QTableWidgetItem(q.value(3).toString()));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
     };
     loadSpecials();
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()

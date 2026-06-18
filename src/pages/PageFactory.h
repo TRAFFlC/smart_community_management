@@ -24,6 +24,7 @@ BasePage* createGovernancePage(const QString& sub);
 BasePage* createServicePage(const QString& sub);
 BasePage* createReportPage(const QString& sub);
 BasePage* createSystemPage(const QString& sub);
+BasePage* createEventPage();
 
 // ===== Property 子页面构建辅助函数 =====
 // 这些函数在 createPropertyPage 内部被调用，用于构建不同子类型的页面内容

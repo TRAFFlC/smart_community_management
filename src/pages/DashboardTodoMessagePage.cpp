@@ -1,7 +1,14 @@
 #include "pages/PageFactory.h"
-#include "PagesCommon.h"
 
-using namespace UiKit;
+#include <QChart>
+#include <QChartView>
+#include <QPieSeries>
+#include <QPieSlice>
+#include <QtCharts>
+
+#include "PagesCommon.h"
+#include "services/EventService.h"
+
 // ========== Dashboard Page ==========
 BasePage *PageFactory::createDashboardPage()
 {
@@ -69,11 +76,7 @@ BasePage *PageFactory::createDashboardPage()
   metricsLayout->addStretch();
   metricsLayout->addWidget(createMetric(QStringLiteral("待处理工单"), woPendCount, page));
 
-  QSqlQuery evPendQ;
-  evPendQ.prepare(QStringLiteral("SELECT COUNT(*) FROM ge_event WHERE status = 0 AND del_flag = 0%1").arg(evScopeFilter));
-  if (onlySelf)
-    evPendQ.bindValue(":scope_uid", user.id);
-  int evPendCount = (evPendQ.exec() && evPendQ.next()) ? evPendQ.value(0).toInt() : 0;
+  int evPendCount = EventService::instance().countPendingEvents(onlySelf ? user.id : -1);
   metricsLayout->addWidget(createMetric(QStringLiteral("待审核事件"), evPendCount, page));
 
   QSqlQuery unreadQ;
@@ -146,7 +149,7 @@ BasePage *PageFactory::createDashboardPage()
     auto *iconLabel = new QLabel(item);
     iconLabel->setFixedSize(32, 32);
     iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setPixmap(tintSvgIcon(actions[i].iconKey, "#64748b", QSize(32, 32)));
+    iconLabel->setPixmap(UiKit::tintSvgIcon(actions[i].iconKey, "#64748b", QSize(32, 32)));
 
     auto *textLabel = new QLabel(actions[i].label, item);
     textLabel->setStyleSheet("font-size: 13px; color: #334155; background: transparent; border: none;");
@@ -451,7 +454,7 @@ BasePage *PageFactory::createTodoPage()
   layout->setSpacing(16);
 
   // Page header
-  layout->addWidget(createPageHeader(QStringLiteral("ic_todo"), QStringLiteral("待办中心"), QStringLiteral("聚合展示各模块待处理事项，快速定位处理"), moduleColor("todo"), page));
+  layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_todo"), QStringLiteral("待办中心"), QStringLiteral("聚合展示各模块待处理事项，快速定位处理"), UiKit::moduleColor("todo"), page));
 
   // Stats cards
   auto *statsRow = new QHBoxLayout();
@@ -474,7 +477,7 @@ BasePage *PageFactory::createTodoPage()
     cl->addWidget(indicator);
     cl->addWidget(tl);
     cl->addWidget(vl);
-    applyCardShadow(card);
+    UiKit::applyCardShadow(card);
     return card;
   };
 
@@ -517,7 +520,7 @@ BasePage *PageFactory::createTodoPage()
   auto *table = new QTableWidget(page);
   table->setAlternatingRowColors(true);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
-  table->setStyleSheet(TABLE_STYLE);
+  table->setStyleSheet(UiKit::TABLE_STYLE);
   table->setShowGrid(false);
   table->verticalHeader()->setVisible(false);
   table->setColumnCount(6);
@@ -528,7 +531,7 @@ BasePage *PageFactory::createTodoPage()
   layout->addWidget(table);
 
   // 空状态提示
-  auto *emptyHint = createEmptyHintLabel(QStringLiteral("暂无待办事项"), page);
+  auto *emptyHint = UiKit::createEmptyHintLabel(QStringLiteral("暂无待办事项"), page);
   layout->addWidget(emptyHint);
 
   // 数据加载函数
@@ -580,14 +583,14 @@ BasePage *PageFactory::createTodoPage()
       {
         table->insertRow(row);
         auto tag = typeTag(1);
-        auto *typeItem = createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
+        auto *typeItem = UiKit::createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
         table->setItem(row, 0, typeItem);
         table->setItem(row, 1, new QTableWidgetItem(q.value(2).toString()));
         table->setItem(row, 2, new QTableWidgetItem(q.value(3).toString()));
         table->setItem(row, 3, new QTableWidgetItem(priorityLabel(q.value(4).toInt())));
         table->setItem(row, 4, new QTableWidgetItem(q.value(5).toDateTime().toString("yyyy-MM-dd hh:mm")));
         auto *btn = new QPushButton(QStringLiteral("去处理"));
-        applyTextButton(btn);
+        UiKit::applyTextButton(btn);
         btn->setCursor(Qt::PointingHandCursor);
         btn->setProperty("targetPage", QStringLiteral("301"));
         table->setCellWidget(row, 5, btn);
@@ -603,14 +606,14 @@ BasePage *PageFactory::createTodoPage()
       {
         table->insertRow(row);
         auto tag = typeTag(2);
-        auto *typeItem = createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
+        auto *typeItem = UiKit::createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
         table->setItem(row, 0, typeItem);
         table->setItem(row, 1, new QTableWidgetItem(q.value(2).toString()));
         table->setItem(row, 2, new QTableWidgetItem(q.value(3).toString()));
         table->setItem(row, 3, new QTableWidgetItem(priorityLabel(q.value(4).toInt())));
         table->setItem(row, 4, new QTableWidgetItem(q.value(5).toDateTime().toString("yyyy-MM-dd hh:mm")));
         auto *btn = new QPushButton(QStringLiteral("去处理"));
-        applyTextButton(btn);
+        UiKit::applyTextButton(btn);
         btn->setCursor(Qt::PointingHandCursor);
         btn->setProperty("targetPage", QStringLiteral("401"));
         table->setCellWidget(row, 5, btn);
@@ -626,14 +629,14 @@ BasePage *PageFactory::createTodoPage()
       {
         table->insertRow(row);
         auto tag = typeTag(3);
-        auto *typeItem = createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
+        auto *typeItem = UiKit::createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
         table->setItem(row, 0, typeItem);
         table->setItem(row, 1, new QTableWidgetItem(q.value(1).toString()));
         table->setItem(row, 2, new QTableWidgetItem(q.value(2).toString()));
         table->setItem(row, 3, new QTableWidgetItem(QStringLiteral("高")));
         table->setItem(row, 4, new QTableWidgetItem(q.value(3).toDateTime().toString("yyyy-MM-dd hh:mm")));
         auto *btn = new QPushButton(QStringLiteral("去处理"));
-        applyTextButton(btn);
+        UiKit::applyTextButton(btn);
         btn->setCursor(Qt::PointingHandCursor);
         btn->setProperty("targetPage", QStringLiteral("404"));
         table->setCellWidget(row, 5, btn);
@@ -649,21 +652,21 @@ BasePage *PageFactory::createTodoPage()
       {
         table->insertRow(row);
         auto tag = typeTag(4);
-        auto *typeItem = createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
+        auto *typeItem = UiKit::createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
         table->setItem(row, 0, typeItem);
         table->setItem(row, 1, new QTableWidgetItem(q.value(1).toString()));
         table->setItem(row, 2, new QTableWidgetItem(q.value(2).toString()));
         table->setItem(row, 3, new QTableWidgetItem(QStringLiteral("中")));
         table->setItem(row, 4, new QTableWidgetItem(q.value(3).toDateTime().toString("yyyy-MM-dd hh:mm")));
         auto *btn = new QPushButton(QStringLiteral("去处理"));
-        applyTextButton(btn);
+        UiKit::applyTextButton(btn);
         btn->setCursor(Qt::PointingHandCursor);
         btn->setProperty("targetPage", QStringLiteral("405"));
         table->setCellWidget(row, 5, btn);
         row++;
       }
     }
-    syncEmptyHint(table, emptyHint);
+    UiKit::syncEmptyHint(table, emptyHint);
   };
 
   loadTodos();
@@ -693,7 +696,7 @@ BasePage *PageFactory::createMessagePage()
   layout->setSpacing(16);
 
   // Page header
-  layout->addWidget(createPageHeader(QStringLiteral("ic_bell"), QStringLiteral("消息中心"), QStringLiteral("查看系统通知、业务提醒和公告推送"), moduleColor("message"), page));
+  layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_bell"), QStringLiteral("消息中心"), QStringLiteral("查看系统通知、业务提醒和公告推送"), UiKit::moduleColor("message"), page));
 
   const auto &user = AuthService::instance().currentUser();
 
@@ -718,7 +721,7 @@ BasePage *PageFactory::createMessagePage()
     cl->addWidget(indicator);
     cl->addWidget(tl);
     cl->addWidget(vl);
-    applyCardShadow(card);
+    UiKit::applyCardShadow(card);
     return card;
   };
 
@@ -755,7 +758,7 @@ BasePage *PageFactory::createMessagePage()
   tbLayout->addWidget(typeCombo);
   tbLayout->addStretch();
   auto *readAllBtn = new QPushButton(QStringLiteral("全部已读"), toolbar);
-  applyPrimaryButton(readAllBtn);
+  UiKit::applyPrimaryButton(readAllBtn);
   readAllBtn->setCursor(Qt::PointingHandCursor);
   tbLayout->addWidget(readAllBtn);
   layout->addWidget(toolbar);
@@ -764,7 +767,7 @@ BasePage *PageFactory::createMessagePage()
   auto *table = new QTableWidget(page);
   table->setAlternatingRowColors(true);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
-  table->setStyleSheet(TABLE_STYLE);
+  table->setStyleSheet(UiKit::TABLE_STYLE);
   table->setShowGrid(false);
   table->verticalHeader()->setVisible(false);
   table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -779,7 +782,7 @@ BasePage *PageFactory::createMessagePage()
   layout->addWidget(table);
 
   // 空状态提示
-  auto *emptyHint = createEmptyHintLabel(QStringLiteral("暂无消息"), page);
+  auto *emptyHint = UiKit::createEmptyHintLabel(QStringLiteral("暂无消息"), page);
   layout->addWidget(emptyHint);
 
   // 数据加载函数
@@ -799,7 +802,7 @@ BasePage *PageFactory::createMessagePage()
     if (filterType > 0)
       cntBinds << ":type" << (filterType);
     cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-    pb->setTotalCount(executeCountQuery(sql, cntBinds));
+    pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
     q.prepare(sql);
     q.bindValue(":uid", user.id);
@@ -837,7 +840,7 @@ BasePage *PageFactory::createMessagePage()
       int ntype = q.value(3).toInt();
       int isRead = q.value(4).toInt();
       auto tag = typeLabel(ntype);
-      auto *typeItem = createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
+      auto *typeItem = UiKit::createTagTableItem(tag.first, QColor(tag.second.red(), tag.second.green(), tag.second.blue(), 30), tag.second);
       typeItem->setData(Qt::UserRole, msgId);
       table->setItem(row, 0, typeItem);
 
@@ -861,12 +864,12 @@ BasePage *PageFactory::createMessagePage()
       table->setItem(row, 3, timeItem);
 
       auto *statusItem = isRead == 0
-                             ? createTagTableItem(QStringLiteral("未读"), QColor("#fef2f2"), QColor("#b91c1c"))
-                             : createTagTableItem(QStringLiteral("已读"), QColor("#f1f5f9"), QColor("#64748b"));
+                             ? UiKit::createTagTableItem(QStringLiteral("未读"), QColor("#fef2f2"), QColor("#b91c1c"))
+                             : UiKit::createTagTableItem(QStringLiteral("已读"), QColor("#f1f5f9"), QColor("#64748b"));
       table->setItem(row, 4, statusItem);
       row++;
     }
-    syncEmptyHint(table, emptyHint);
+    UiKit::syncEmptyHint(table, emptyHint);
     pb->refreshData();
   };
 
@@ -981,7 +984,7 @@ BasePage *PageFactory::createMessagePage()
         q.bindValue(":now", QDateTime::currentDateTime());
         q.bindValue(":uid", user.id);
         q.exec();
-        showToast(QStringLiteral("已全部标为已读"), page);
+        UiKit::showToast(QStringLiteral("已全部标为已读"), page);
         loadMessages(); });
 
   return page;

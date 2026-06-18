@@ -4,6 +4,8 @@
 #include <QDebug>
 #include <QFile>
 #include <QIcon>
+#include <QStandardPaths>
+#include <QDir>
 #include "database/DatabaseManager.h"
 #include "services/AuthService.h"
 #include "services/DemoDataService.h"
@@ -55,8 +57,12 @@ int main(int argc, char* argv[]) {
     qDebug() << "Initializing...";
 
     // 初始化数据库
+    QString dbDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir dir(dbDir);
+    if (!dir.exists()) dir.mkpath(".");
+    QString dbPath = dir.absoluteFilePath("smart_community.db");
     auto& db = DatabaseManager::instance();
-    if (!db.initialize("smart_community.db")) {
+    if (!db.initialize(dbPath)) {
         qCritical() << "Failed to initialize database!";
         return -1;
     }

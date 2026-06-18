@@ -1,9 +1,6 @@
 #include "MainWindow.h"
 #include "PagesCommon.h"
 
-// 将 UiKit 命名空间内的工具函数引入当前编译单元，保持原匿名空间调用写法不变
-using namespace UiKit;
-
 
 // 发送通知到指定用户（成员函数：写入后会刷新未读角标）
 void MainWindow::sendNotification(int userId, const QString &title, const QString &content, int type, const QString &bizType, int bizId)
@@ -503,7 +500,7 @@ void MainWindow::switchPage(const QString &key)
     }
     m_contentStack->setCurrentIndex(idx);
     // Page transition: fade-in animation
-    fadeInWidget(page);
+    UiKit::fadeInWidget(page);
   }
 
   // 更新面包屑（可点击导航）
@@ -848,7 +845,7 @@ void MainWindow::refreshCurrentPage()
       idx = m_contentStack->count() - 1;
     }
     m_contentStack->setCurrentIndex(idx);
-    fadeInWidget(page);
+    UiKit::fadeInWidget(page);
   }
 }
 

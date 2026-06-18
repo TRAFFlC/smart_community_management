@@ -4,6 +4,8 @@
 #include <QString>
 #include <QDateTime>
 #include <QVariant>
+#include <QVariantMap>
+#include <QSqlQuery>
 #include <QList>
 
 // ========== 通用基类 ==========
@@ -145,6 +147,56 @@ struct CmEstate : BaseEntity {
     double longitude = 0;
     double latitude = 0;
     int status = 0;
+
+    static CmEstate fromQuery(QSqlQuery& q) {
+        CmEstate e;
+        e.id = q.value(0).toLongLong();
+        e.orgId = q.value(1).toLongLong();
+        e.propertyCompanyId = q.value(2).toLongLong();
+        e.estateName = q.value(3).toString();
+        e.estateCode = q.value(4).toString();
+        e.address = q.value(5).toString();
+        e.totalArea = q.value(6).toDouble();
+        e.totalBuildings = q.value(7).toInt();
+        e.totalHouses = q.value(8).toInt();
+        e.builtYear = q.value(9).toInt();
+        e.greenRate = q.value(10).toDouble();
+        e.parkingSpaces = q.value(11).toInt();
+        e.longitude = q.value(12).toDouble();
+        e.latitude = q.value(13).toDouble();
+        e.status = q.value(14).toInt();
+        e.createBy = q.value(15).toLongLong();
+        e.createTime = q.value(16).toDateTime();
+        e.updateBy = q.value(17).toLongLong();
+        e.updateTime = q.value(18).toDateTime();
+        e.delFlag = q.value(19).toInt();
+        e.remark = q.value(20).toString();
+        return e;
+    }
+
+    QVariantMap toVariantMap() const {
+        return {{"id", id},
+                {"org_id", orgId},
+                {"property_company_id", propertyCompanyId},
+                {"estate_name", estateName},
+                {"estate_code", estateCode},
+                {"address", address},
+                {"total_area", totalArea},
+                {"total_buildings", totalBuildings},
+                {"total_houses", totalHouses},
+                {"built_year", builtYear},
+                {"green_rate", greenRate},
+                {"parking_spaces", parkingSpaces},
+                {"longitude", longitude},
+                {"latitude", latitude},
+                {"status", status},
+                {"create_by", createBy},
+                {"create_time", createTime},
+                {"update_by", updateBy},
+                {"update_time", updateTime},
+                {"del_flag", delFlag},
+                {"remark", remark}};
+    }
 };
 
 struct CmBuilding : BaseEntity {
@@ -174,6 +226,48 @@ struct CmHouse : BaseEntity {
     int houseStatus = 0;
     QString ownerName;
     QString ownerPhone;
+
+    static CmHouse fromQuery(QSqlQuery& q) {
+        CmHouse h;
+        h.id = q.value(0).toLongLong();
+        h.unitId = q.value(1).toLongLong();
+        h.estateId = q.value(2).toLongLong();
+        h.houseCode = q.value(3).toString();
+        h.floor = q.value(4).toInt();
+        h.roomNumber = q.value(5).toString();
+        h.area = q.value(6).toDouble();
+        h.houseType = q.value(7).toString();
+        h.houseStatus = q.value(8).toInt();
+        h.ownerName = q.value(9).toString();
+        h.ownerPhone = q.value(10).toString();
+        h.createBy = q.value(11).toLongLong();
+        h.createTime = q.value(12).toDateTime();
+        h.updateBy = q.value(13).toLongLong();
+        h.updateTime = q.value(14).toDateTime();
+        h.delFlag = q.value(15).toInt();
+        h.remark = q.value(16).toString();
+        return h;
+    }
+
+    QVariantMap toVariantMap() const {
+        return {{"id", id},
+                {"unit_id", unitId},
+                {"estate_id", estateId},
+                {"house_code", houseCode},
+                {"floor", floor},
+                {"room_number", roomNumber},
+                {"area", area},
+                {"house_type", houseType},
+                {"house_status", houseStatus},
+                {"owner_name", ownerName},
+                {"owner_phone", ownerPhone},
+                {"create_by", createBy},
+                {"create_time", createTime},
+                {"update_by", updateBy},
+                {"update_time", updateTime},
+                {"del_flag", delFlag},
+                {"remark", remark}};
+    }
 };
 
 struct CmResident : BaseEntity {
@@ -194,6 +288,62 @@ struct CmResident : BaseEntity {
     QString emergencyContact;
     QString emergencyPhone;
     int status = 0;
+
+    static CmResident fromQuery(QSqlQuery& q) {
+        CmResident r;
+        r.id = q.value(0).toLongLong();
+        r.userId = q.value(1).toLongLong();
+        r.name = q.value(2).toString();
+        r.idCard = q.value(3).toString();
+        r.gender = q.value(4).toInt();
+        r.phone = q.value(5).toString();
+        r.phoneDisplay = q.value(6).toString();
+        r.birthday = q.value(7).toDate();
+        r.photo = q.value(8).toString();
+        r.nationality = q.value(9).toString();
+        r.education = q.value(10).toString();
+        r.occupation = q.value(11).toString();
+        r.politicalStatus = q.value(12).toString();
+        r.isSpecial = q.value(13).toInt();
+        r.specialType = q.value(14).toString();
+        r.emergencyContact = q.value(15).toString();
+        r.emergencyPhone = q.value(16).toString();
+        r.status = q.value(17).toInt();
+        r.createBy = q.value(18).toLongLong();
+        r.createTime = q.value(19).toDateTime();
+        r.updateBy = q.value(20).toLongLong();
+        r.updateTime = q.value(21).toDateTime();
+        r.delFlag = q.value(22).toInt();
+        r.remark = q.value(23).toString();
+        return r;
+    }
+
+    QVariantMap toVariantMap() const {
+        return {{"id", id},
+                {"user_id", userId},
+                {"name", name},
+                {"id_card", idCard},
+                {"gender", gender},
+                {"phone", phone},
+                {"phone_display", phoneDisplay},
+                {"birthday", birthday},
+                {"photo", photo},
+                {"nationality", nationality},
+                {"education", education},
+                {"occupation", occupation},
+                {"political_status", politicalStatus},
+                {"is_special", isSpecial},
+                {"special_type", specialType},
+                {"emergency_contact", emergencyContact},
+                {"emergency_phone", emergencyPhone},
+                {"status", status},
+                {"create_by", createBy},
+                {"create_time", createTime},
+                {"update_by", updateBy},
+                {"update_time", updateTime},
+                {"del_flag", delFlag},
+                {"remark", remark}};
+    }
 };
 
 struct CmFamily : BaseEntity {
@@ -325,6 +475,78 @@ struct WoWorkOrder : BaseEntity {
     int isEscalated = 0;
     qint64 escalateToEventId = 0;
     int source = 0;
+
+    static WoWorkOrder fromQuery(QSqlQuery& q) {
+        WoWorkOrder o;
+        o.id = q.value(0).toLongLong();
+        o.orderNo = q.value(1).toString();
+        o.estateId = q.value(2).toLongLong();
+        o.houseId = q.value(3).toLongLong();
+        o.reporterId = q.value(4).toLongLong();
+        o.reporterName = q.value(5).toString();
+        o.reporterPhone = q.value(6).toString();
+        o.orderType = q.value(7).toInt();
+        o.priority = q.value(8).toInt();
+        o.title = q.value(9).toString();
+        o.description = q.value(10).toString();
+        o.locationDesc = q.value(11).toString();
+        o.images = q.value(12).toString();
+        o.status = q.value(13).toInt();
+        o.acceptBy = q.value(14).toLongLong();
+        o.acceptTime = q.value(15).toDateTime();
+        o.assignTo = q.value(16).toLongLong();
+        o.assignTime = q.value(17).toDateTime();
+        o.finishTime = q.value(18).toDateTime();
+        o.closeTime = q.value(19).toDateTime();
+        o.resultDesc = q.value(20).toString();
+        o.resultImages = q.value(21).toString();
+        o.slaDeadline = q.value(22).toDateTime();
+        o.isEscalated = q.value(23).toInt();
+        o.escalateToEventId = q.value(24).toLongLong();
+        o.source = q.value(25).toInt();
+        o.createBy = q.value(26).toLongLong();
+        o.createTime = q.value(27).toDateTime();
+        o.updateBy = q.value(28).toLongLong();
+        o.updateTime = q.value(29).toDateTime();
+        o.delFlag = q.value(30).toInt();
+        o.remark = q.value(31).toString();
+        return o;
+    }
+
+    QVariantMap toVariantMap() const {
+        return {{"id", id},
+                {"order_no", orderNo},
+                {"estate_id", estateId},
+                {"house_id", houseId},
+                {"reporter_id", reporterId},
+                {"reporter_name", reporterName},
+                {"reporter_phone", reporterPhone},
+                {"order_type", orderType},
+                {"priority", priority},
+                {"title", title},
+                {"description", description},
+                {"location_desc", locationDesc},
+                {"images", images},
+                {"status", status},
+                {"accept_by", acceptBy},
+                {"accept_time", acceptTime},
+                {"assign_to", assignTo},
+                {"assign_time", assignTime},
+                {"finish_time", finishTime},
+                {"close_time", closeTime},
+                {"result_desc", resultDesc},
+                {"result_images", resultImages},
+                {"sla_deadline", slaDeadline},
+                {"is_escalated", isEscalated},
+                {"escalate_to_event_id", escalateToEventId},
+                {"source", source},
+                {"create_by", createBy},
+                {"create_time", createTime},
+                {"update_by", updateBy},
+                {"update_time", updateTime},
+                {"del_flag", delFlag},
+                {"remark", remark}};
+    }
 };
 
 // ========== GE 社区治理域 ==========
@@ -357,6 +579,82 @@ struct GeEvent : BaseEntity {
     int isSupervised = 0;
     int isCoordinated = 0;
     int source = 0;
+
+    static GeEvent fromQuery(QSqlQuery& q) {
+        GeEvent e;
+        e.id = q.value(0).toLongLong();
+        e.eventNo = q.value(1).toString();
+        e.gridId = q.value(2).toLongLong();
+        e.communityOrgId = q.value(3).toLongLong();
+        e.reporterId = q.value(4).toLongLong();
+        e.reporterName = q.value(5).toString();
+        e.eventCategory = q.value(6).toInt();
+        e.priority = q.value(7).toInt();
+        e.title = q.value(8).toString();
+        e.description = q.value(9).toString();
+        e.location = q.value(10).toString();
+        e.longitude = q.value(11).toDouble();
+        e.latitude = q.value(12).toDouble();
+        e.images = q.value(13).toString();
+        e.status = q.value(14).toInt();
+        e.reviewerId = q.value(15).toLongLong();
+        e.reviewTime = q.value(16).toDateTime();
+        e.assignTo = q.value(17).toLongLong();
+        e.assignOrgId = q.value(18).toLongLong();
+        e.assignTime = q.value(19).toDateTime();
+        e.finishTime = q.value(20).toDateTime();
+        e.archiveTime = q.value(21).toDateTime();
+        e.resultDesc = q.value(22).toString();
+        e.resultImages = q.value(23).toString();
+        e.slaDeadline = q.value(24).toDateTime();
+        e.isSupervised = q.value(25).toInt();
+        e.isCoordinated = q.value(26).toInt();
+        e.source = q.value(27).toInt();
+        e.createBy = q.value(28).toLongLong();
+        e.createTime = q.value(29).toDateTime();
+        e.updateBy = q.value(30).toLongLong();
+        e.updateTime = q.value(31).toDateTime();
+        e.delFlag = q.value(32).toInt();
+        e.remark = q.value(33).toString();
+        return e;
+    }
+
+    QVariantMap toVariantMap() const {
+        return {{"id", id},
+                {"event_no", eventNo},
+                {"grid_id", gridId},
+                {"community_org_id", communityOrgId},
+                {"reporter_id", reporterId},
+                {"reporter_name", reporterName},
+                {"event_category", eventCategory},
+                {"priority", priority},
+                {"title", title},
+                {"description", description},
+                {"location", location},
+                {"longitude", longitude},
+                {"latitude", latitude},
+                {"images", images},
+                {"status", status},
+                {"reviewer_id", reviewerId},
+                {"review_time", reviewTime},
+                {"assign_to", assignTo},
+                {"assign_org_id", assignOrgId},
+                {"assign_time", assignTime},
+                {"finish_time", finishTime},
+                {"archive_time", archiveTime},
+                {"result_desc", resultDesc},
+                {"result_images", resultImages},
+                {"sla_deadline", slaDeadline},
+                {"is_supervised", isSupervised},
+                {"is_coordinated", isCoordinated},
+                {"source", source},
+                {"create_by", createBy},
+                {"create_time", createTime},
+                {"update_by", updateBy},
+                {"update_time", updateTime},
+                {"del_flag", delFlag},
+                {"remark", remark}};
+    }
 };
 
 struct GeEventFlow {

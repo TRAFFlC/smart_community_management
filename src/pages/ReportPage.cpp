@@ -1,7 +1,18 @@
 #include "pages/PageFactory.h"
+
+#include <QChart>
+#include <QChartView>
+#include <QPieSeries>
+#include <QBarSeries>
+#include <QBarSet>
+#include <QLineSeries>
+#include <QScatterSeries>
+#include <QCategoryAxis>
+#include <QValueAxis>
+#include <QtCharts>
+
 #include "PagesCommon.h"
 
-using namespace UiKit;
 // ========== Report Pages ==========
 BasePage *PageFactory::createReportPage(const QString &sub)
 {
@@ -37,7 +48,7 @@ BasePage *PageFactory::createReportPage(const QString &sub)
     cl->addWidget(indicator);
     cl->addWidget(tl);
     cl->addWidget(vl);
-    applyCardShadow(card);
+    UiKit::applyCardShadow(card);
     return card;
   };
 
@@ -255,7 +266,7 @@ BasePage *PageFactory::createReportPage(const QString &sub)
 
   if (sub == "workorder")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("工单统计分析"), QStringLiteral("工单类型、趋势和状态多维度数据分析"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("工单统计分析"), QStringLiteral("工单类型、趋势和状态多维度数据分析"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
 
     // ===== Task 16: 工单统计增强 =====
@@ -371,14 +382,14 @@ BasePage *PageFactory::createReportPage(const QString &sub)
             dl->addLayout(btnRow);
             QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
             QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, table]() {
-                exportTableToCsv(table, QStringLiteral("工单统计.csv"), dlg);
+                UiKit::exportTableToCsv(table, QStringLiteral("工单统计.csv"), dlg);
             });
             dlg->exec();
             dlg->deleteLater(); });
   }
   else if (sub == "event")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("事件统计分析"), QStringLiteral("网格事件类别、处理效率和趋势分析"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("事件统计分析"), QStringLiteral("网格事件类别、处理效率和趋势分析"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
 
     // ===== Task 17: 事件统计增强 =====
@@ -501,14 +512,14 @@ BasePage *PageFactory::createReportPage(const QString &sub)
             dl->addLayout(btnRow);
             QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
             QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, table]() {
-                exportTableToCsv(table, QStringLiteral("事件统计.csv"), dlg);
+                UiKit::exportTableToCsv(table, QStringLiteral("事件统计.csv"), dlg);
             });
             dlg->exec();
             dlg->deleteLater(); });
   }
   else if (sub == "service")
   {
-    layout->addWidget(createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("服务统计分析"), QStringLiteral("社区服务订单状态和趋势数据分析"), moduleColor(sub), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("服务统计分析"), QStringLiteral("社区服务订单状态和趋势数据分析"), UiKit::moduleColor(sub), page));
     layout->addSpacing(12);
 
     // 统计卡片
@@ -614,7 +625,7 @@ BasePage *PageFactory::createReportPage(const QString &sub)
             dl->addLayout(btnRow);
             QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
             QObject::connect(okBtn, &QPushButton::clicked, dlg, [dlg, table]() {
-                exportTableToCsv(table, QStringLiteral("服务统计.csv"), dlg);
+                UiKit::exportTableToCsv(table, QStringLiteral("服务统计.csv"), dlg);
             });
             dlg->exec();
             dlg->deleteLater(); });
@@ -625,7 +636,7 @@ BasePage *PageFactory::createReportPage(const QString &sub)
     QWidget *scrollContent = content;
     QVBoxLayout *mainLay = layout;
 
-    auto *dashboardHeader = createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("综合数据看板"), QStringLiteral("多维度数据可视化，实时监控社区运营状态"), moduleColor("dashboard"), scrollContent);
+    auto *dashboardHeader = UiKit::createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("综合数据看板"), QStringLiteral("多维度数据可视化，实时监控社区运营状态"), UiKit::moduleColor("dashboard"), scrollContent);
     mainLay->addWidget(dashboardHeader);
     mainLay->addSpacing(12);
 
@@ -875,7 +886,7 @@ BasePage *PageFactory::createReportPage(const QString &sub)
     perfTable->setAlternatingRowColors(true);
     perfTable->horizontalHeader()->setStretchLastSection(true);
     perfTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    perfTable->setStyleSheet(TABLE_STYLE);
+    perfTable->setStyleSheet(UiKit::TABLE_STYLE);
     perfTable->setShowGrid(false);
     perfTable->verticalHeader()->setVisible(false);
     perfTable->setEditTriggers(QAbstractItemView::NoEditTriggers);

@@ -12,6 +12,7 @@
 #include "AuthService.h"
 #include "database/DatabaseManager.h"
 #include "models/Constants.h"
+#include "utils/Utils.h"
 
 // AI 智能问答服务
 // 安全架构：
@@ -158,18 +159,35 @@ private:
                    "config_type INTEGER DEFAULT 0, remark VARCHAR(500), create_time DATETIME DEFAULT CURRENT_TIMESTAMP)");
             q.exec("SELECT config_key, config_value FROM sys_config WHERE config_key LIKE 'ai_%'");
         }
+        bool needsEncrypt = false;
         while (q.next()) {
             QString key = q.value(0).toString();
             QString val = q.value(1).toString();
             qDebug() << "[AI] Loaded config:" << key << "=" << (key.contains("key") ? val.left(6) + "..." : val);
-            if (key == "ai_api_key") m_apiKey = val;
-            else if (key == "ai_model") m_model = val;
-            else if (key.startsWith("ai_api_key_")) m_backupKeys << val;
+            if (key == "ai_api_key") {
+                if (val.startsWith(QStringLiteral("enc:"))) {
+                    m_apiKey = Utils::simpleDecrypt(val);
+                } else {
+                    m_apiKey = val;
+                    needsEncrypt = !m_apiKey.isEmpty();
+                }
+            } else if (key == "ai_model") {
+                m_model = val;
+            } else if (key.startsWith("ai_api_key_")) {
+                m_backupKeys << val;
+            }
         }
         if (m_model.isEmpty()) m_model = "poolside/laguna-m.1:free";
         if (m_apiKey.isEmpty()) {
             m_apiKey = qEnvironmentVariable("OPENROUTER_API_KEY");
-            if (!m_apiKey.isEmpty()) qDebug() << "[AI] Using env var OPENROUTER_API_KEY";
+            if (!m_apiKey.isEmpty()) {
+                qDebug() << "[AI] Using env var OPENROUTER_API_KEY";
+                needsEncrypt = true;
+            }
+        }
+        // 自动迁移：将旧版明文或环境变量中的明文加密写入数据库
+        if (needsEncrypt) {
+            saveConfig();
         }
         qDebug() << "[AI] Final: key_len=" << m_apiKey.trimmed().length() << "model=" << m_model;
     }
@@ -190,7 +208,8 @@ private:
                 qDebug() << "[AI] saveConfig OK:" << key << "=" << (key.contains("key") ? value.left(6) + "..." : value);
             }
         };
-        upsert("ai_api_key", QStringLiteral("AI 主 API Key"), m_apiKey);
+        upsert("ai_api_key", QStringLiteral("AI 主 API Key"),
+               m_apiKey.isEmpty() ? QString() : Utils::simpleEncrypt(m_apiKey));
         upsert("ai_model", QStringLiteral("AI 模型名称"), m_model);
         for (int i = 0; i < m_backupKeys.size(); i++) {
             upsert(QString("ai_api_key_%1").arg(i+1),

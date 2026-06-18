@@ -1,7 +1,6 @@
 #include "pages/PageFactory.h"
 #include "PagesCommon.h"
 
-using namespace UiKit;
 // ========== Service Pages ==========
 BasePage *PageFactory::createServicePage(const QString &sub)
 {
@@ -13,7 +12,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
   table->setAlternatingRowColors(true);
   table->horizontalHeader()->setStretchLastSection(true);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
-  table->setStyleSheet(TABLE_STYLE);
+  table->setStyleSheet(UiKit::TABLE_STYLE);
   table->setShowGrid(false);
   table->verticalHeader()->setVisible(false);
   table->setSortingEnabled(true);
@@ -29,12 +28,12 @@ BasePage *PageFactory::createServicePage(const QString &sub)
     svcEmptyText = QStringLiteral("暂无岗位记录");
   else
     svcEmptyText = QStringLiteral("暂无数据");
-  auto *emptyHint = createEmptyHintLabel(svcEmptyText, page);
+  auto *emptyHint = UiKit::createEmptyHintLabel(svcEmptyText, page);
 
   if (sub == "volunteer")
   {
     // Page header
-    layout->addWidget(createPageHeader(QStringLiteral("ic_people"), QStringLiteral("志愿服务"), QStringLiteral("社区志愿活动发布、报名、签到和时长管理"), moduleColor("volunteer"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_people"), QStringLiteral("志愿服务"), QStringLiteral("社区志愿活动发布、报名、签到和时长管理"), UiKit::moduleColor("volunteer"), page));
     layout->addSpacing(12);
 
     // Stat cards
@@ -122,7 +121,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
     auto *actTable = new QTableWidget(actWidget);
     actTable->setAlternatingRowColors(true);
     actTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    actTable->setStyleSheet(TABLE_STYLE);
+    actTable->setStyleSheet(UiKit::TABLE_STYLE);
     actTable->setShowGrid(false);
     actTable->verticalHeader()->setVisible(false);
     actTable->setSortingEnabled(true);
@@ -138,7 +137,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
     layout->addWidget(pb);
     // 前向声明：用 shared_ptr 持有处理函数，避免循环依赖
     auto actActionHandlerPtr = std::make_shared<std::function<void(qint64, int)>>();
-    auto *actEmptyHint = createEmptyHintLabel(QStringLiteral("暂无志愿活动记录"), actWidget);
+    auto *actEmptyHint = UiKit::createEmptyHintLabel(QStringLiteral("暂无志愿活动记录"), actWidget);
     std::function<void()> loadActivities = [actTable, actSearchEdit, actStatusCombo, actActionHandlerPtr, actEmptyHint, pb]()
     {
       actTable->setRowCount(0);
@@ -159,7 +158,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
       if (actStatusFilter >= 0)
         cntBinds << ":status" << (actStatusFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       actQ.prepare(sql);
       if (!actSearch.isEmpty())
@@ -188,17 +187,17 @@ BasePage *PageFactory::createServicePage(const QString &sub)
                                            : sts == 3   ? "#f5f5f5"
                                            : sts == 4   ? "#fff1f0"
                                                         : "#fffbe6";
-        auto *stsItem = createTagTableItem(VolunteerActivityStatus::label(sts), QColor(stsBg), QColor(stsColor));
+        auto *stsItem = UiKit::createTagTableItem(VolunteerActivityStatus::label(sts), QColor(stsBg), QColor(stsColor));
         actTable->setItem(actRow, 6, stsItem);
 
         // Action text item
         QString actActionText = (sts == 1) ? QStringLiteral("报名") : QStringLiteral("查看");
         QString actActionColor = (sts == 1) ? "#b45309" : "#b45309";
         qint64 actId = actQ.value(0).toLongLong();
-        actTable->setItem(actRow, 7, createActionItem(actActionText, actActionColor, actId, sts));
+        actTable->setItem(actRow, 7, UiKit::createActionItem(actActionText, actActionColor, actId, sts));
         actRow++;
       }
-      syncEmptyHint(actTable, actEmptyHint);
+      UiKit::syncEmptyHint(actTable, actEmptyHint);
       pb->refreshData();
     };
     std::function<void(qint64, int)> handleActivityAction = [page, loadActivities, actTable](qint64 id, int sts)
@@ -238,7 +237,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
           volId = DatabaseManager::instance().insert("sv_volunteer", {{"user_id", user.id}, {"skills", QStringLiteral("通用")}, {"available_time", QStringLiteral("不限")}, {"total_hours", 0}, {"status", 0}});
         }
         DatabaseManager::instance().insert("sv_volunteer_signup", {{"activity_id", id}, {"volunteer_id", volId}, {"signup_time", QDateTime::currentDateTime()}, {"status", 0}});
-        showToast(QStringLiteral("报名成功"), page);
+        UiKit::showToast(QStringLiteral("报名成功"), page);
         loadActivities();
       }
     };
@@ -333,7 +332,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
                     {"create_by", user.id},
                     {"create_time", QDateTime::currentDateTime()}
                 });
-                showToast(QStringLiteral("活动发布成功"), page);
+                UiKit::showToast(QStringLiteral("活动发布成功"), page);
                 dlg.accept();
                 loadActivities();
             });
@@ -352,7 +351,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
     signupTable->setAlternatingRowColors(true);
     signupTable->horizontalHeader()->setStretchLastSection(true);
     signupTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    signupTable->setStyleSheet(TABLE_STYLE);
+    signupTable->setStyleSheet(UiKit::TABLE_STYLE);
     signupTable->setShowGrid(false);
     signupTable->verticalHeader()->setVisible(false);
     signupTable->setSortingEnabled(true);
@@ -363,7 +362,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
 
     // 前向声明：用 shared_ptr 持有处理函数，避免循环依赖
     auto sigActionHandlerPtr = std::make_shared<std::function<void(qint64, int)>>();
-    auto *signupEmptyHint = createEmptyHintLabel(QStringLiteral("暂无报名记录"), signupWidget);
+    auto *signupEmptyHint = UiKit::createEmptyHintLabel(QStringLiteral("暂无报名记录"), signupWidget);
     std::function<void()> loadSignups = [signupTable, sigActionHandlerPtr, signupEmptyHint]()
     {
       signupTable->setRowCount(0);
@@ -388,7 +387,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
         QColor sigFg = sigSts == 0 ? QColor("#a16207") : sigSts == 1 ? QColor("#b45309")
                                                      : sigSts == 2   ? QColor("#64748b")
                                                                      : QColor("#15803d");
-        auto *sigStsItem = createTagTableItem(sigText, sigBg, sigFg);
+        auto *sigStsItem = UiKit::createTagTableItem(sigText, sigBg, sigFg);
         signupTable->setItem(sigRow, 5, sigStsItem);
 
         // 操作列: 签到/签退
@@ -410,10 +409,10 @@ BasePage *PageFactory::createServicePage(const QString &sub)
           actText = QStringLiteral("--");
           actColor = "#64748b";
         }
-        signupTable->setItem(sigRow, 6, createActionItem(actText, actColor, sigId, sigSts));
+        signupTable->setItem(sigRow, 6, UiKit::createActionItem(actText, actColor, sigId, sigSts));
         sigRow++;
       }
-      syncEmptyHint(signupTable, signupEmptyHint);
+      UiKit::syncEmptyHint(signupTable, signupEmptyHint);
     };
     std::function<void(qint64, int)> handleSignupAction = [page, loadSignups](qint64 sigId, int sigSts)
     {
@@ -426,7 +425,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
         if (retCheckin != QMessageBox::Yes)
           return;
         DatabaseManager::instance().update("sv_volunteer_signup", sigId, {{"checkin_time", QDateTime::currentDateTime()}, {"status", 1}});
-        showToast(QStringLiteral("签到成功"), page);
+        UiKit::showToast(QStringLiteral("签到成功"), page);
         loadSignups();
       }
       else if (sigSts == 1)
@@ -448,12 +447,12 @@ BasePage *PageFactory::createServicePage(const QString &sub)
           if (hours < 0)
             hours = 0;
           DatabaseManager::instance().update("sv_volunteer_signup", sigId, {{"checkout_time", checkout}, {"hours", hours}, {"status", 2}});
-          showToast(QStringLiteral("签退成功"), page);
+          UiKit::showToast(QStringLiteral("签退成功"), page);
         }
         else
         {
           DatabaseManager::instance().update("sv_volunteer_signup", sigId, {{"checkout_time", QDateTime::currentDateTime()}, {"hours", 0}, {"status", 2}});
-          showToast(QStringLiteral("签退成功"), page);
+          UiKit::showToast(QStringLiteral("签退成功"), page);
         }
         loadSignups();
       }
@@ -530,7 +529,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
       if (statusFilter >= 0)
         cntBinds << ":status" << (statusFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       q.prepare(sql);
       if (!searchText.isEmpty())
@@ -572,12 +571,12 @@ BasePage *PageFactory::createServicePage(const QString &sub)
           convFg = QColor("#64748b");
           break;
         }
-        auto *convStsItem = createTagTableItem(ServiceOrderStatus::label(convSts), convBg, convFg);
+        auto *convStsItem = UiKit::createTagTableItem(ServiceOrderStatus::label(convSts), convBg, convFg);
         table->setItem(row, 3, convStsItem);
         table->setItem(row, 4, new QTableWidgetItem(q.value(4).toDateTime().toString("yyyy-MM-dd hh:mm")));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     loadConvenience();
@@ -589,7 +588,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
   else if (sub == "job")
   {
     // Page header
-    layout->addWidget(createPageHeader(QStringLiteral("ic_briefcase"), QStringLiteral("就业服务"), QStringLiteral("社区岗位发布、招聘信息和求职服务"), moduleColor("job"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_briefcase"), QStringLiteral("就业服务"), QStringLiteral("社区岗位发布、招聘信息和求职服务"), UiKit::moduleColor("job"), page));
     layout->addSpacing(12);
 
     // Toolbar
@@ -646,7 +645,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
       if (statusFilter >= 0)
         cntBinds << ":status" << (statusFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       jobQ.prepare(sql);
       if (!searchText.isEmpty())
@@ -667,7 +666,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
         table->setItem(jRow, 3, new QTableWidgetItem(jobQ.value(4).toString()));
         table->setItem(jRow, 4, new QTableWidgetItem(jobQ.value(5).toString()));
         int jSts = jobQ.value(6).toInt();
-        auto *stsItem = createTagTableItem(jSts == 0 ? QStringLiteral("招聘中") : jSts == 1 ? QStringLiteral("已截止")
+        auto *stsItem = UiKit::createTagTableItem(jSts == 0 ? QStringLiteral("招聘中") : jSts == 1 ? QStringLiteral("已截止")
                                                                                             : QStringLiteral("已关闭"),
                                            QColor(jSts == 0 ? "#e6f4ff" : jSts == 1 ? "#fff7e6"
                                                                                     : "#e2e8f0"),
@@ -677,10 +676,10 @@ BasePage *PageFactory::createServicePage(const QString &sub)
         // 操作列: status=0(招聘中) 显示"投递"
         QString actText = (jSts == 0) ? QStringLiteral("投递") : QStringLiteral("-");
         QString actColor = (jSts == 0) ? "#b45309" : "#64748b";
-        table->setItem(jRow, 6, createActionItem(actText, actColor, jobId, jSts));
+        table->setItem(jRow, 6, UiKit::createActionItem(actText, actColor, jobId, jSts));
         jRow++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -774,7 +773,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
                     {"create_by", user.id},
                     {"create_time", now}
                 });
-                showToast(QStringLiteral("投递成功"), page);
+                UiKit::showToast(QStringLiteral("投递成功"), page);
                 dlg.accept(); });
       dlgLayout->addWidget(buttons);
       dlg.exec();
@@ -870,7 +869,7 @@ BasePage *PageFactory::createServicePage(const QString &sub)
                     {"update_by", user.id},
                     {"update_time", now}
                 });
-                showToast(QStringLiteral("岗位发布成功"), page);
+                UiKit::showToast(QStringLiteral("岗位发布成功"), page);
                 dlg.accept();
                 loadJobs();
             });

@@ -1,11 +1,10 @@
 #include "pages/PageFactory.h"
 #include "PagesCommon.h"
 
-using namespace UiKit;
 void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint)
 {
     // Page header
-    layout->addWidget(createPageHeader(QStringLiteral("ic_tool"), QStringLiteral("报事报修管理"), QStringLiteral("管理居民报修工单，支持受理、派单、处理、评价全流程"), moduleColor("workorder"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_tool"), QStringLiteral("报事报修管理"), QStringLiteral("管理居民报修工单，支持受理、派单、处理、评价全流程"), UiKit::moduleColor("workorder"), page));
     layout->addSpacing(12);
 
     // Toolbar
@@ -56,7 +55,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
       table->setRowCount(0);
       QString sql = "SELECT id, order_no, title, order_type, priority, status, reporter_name, create_time, reporter_id, assign_to FROM wo_work_order WHERE del_flag = 0";
       // 注入数据权限过滤（居民只看本人，物业/社区按组织范围）
-      auto scopeFilter = buildDataScopeFilter("", "estate_id");
+      auto scopeFilter = UiKit::buildDataScopeFilter("", "estate_id");
       sql += scopeFilter.first;
       QString searchText = searchEdit->text().trimmed();
       int filterIdx = filterCombo->currentIndex();
@@ -93,7 +92,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
       if (onlyMine)
         cntBinds << ":myId" << AuthService::instance().currentUser().id;
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       q.prepare(sql);
       // 数据权限过滤的绑定参数加入主查询
@@ -127,10 +126,10 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
         table->setItem(row, 1, new QTableWidgetItem(q.value(2).toString()));
         table->setItem(row, 2, new QTableWidgetItem(WorkOrderType::label(q.value(3).toInt())));
         QColor priColor(WorkOrderPriority::color(q.value(4).toInt()));
-        auto *priItem = createTagTableItem(WorkOrderPriority::label(q.value(4).toInt()), QColor(priColor.red(), priColor.green(), priColor.blue(), 30), priColor);
+        auto *priItem = UiKit::createTagTableItem(WorkOrderPriority::label(q.value(4).toInt()), QColor(priColor.red(), priColor.green(), priColor.blue(), 30), priColor);
         table->setItem(row, 3, priItem);
         QColor woColor(WorkOrderStatus::color(q.value(5).toInt()));
-        auto *statusItem = createTagTableItem(WorkOrderStatus::label(q.value(5).toInt()), QColor(woColor.red(), woColor.green(), woColor.blue(), 30), woColor);
+        auto *statusItem = UiKit::createTagTableItem(WorkOrderStatus::label(q.value(5).toInt()), QColor(woColor.red(), woColor.green(), woColor.blue(), 30), woColor);
         table->setItem(row, 4, statusItem);
         table->setItem(row, 5, new QTableWidgetItem(q.value(6).toString()));
         table->setItem(row, 6, new QTableWidgetItem(q.value(7).toDateTime().toString("yyyy-MM-dd hh:mm")));
@@ -140,7 +139,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
         qint64 assigneeId = q.value(9).toLongLong();
         QString actionText;
         QString actionColor;
-        if (canOperateWorkOrder(sts, reporterId, assigneeId))
+        if (UiKit::canOperateWorkOrder(sts, reporterId, assigneeId))
         {
           if (sts == 0)
           {
@@ -178,10 +177,10 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
           actionText = QStringLiteral("--");
           actionColor = "#64748b";
         }
-        table->setItem(row, 7, createActionItem(actionText, actionColor, woId, sts));
+        table->setItem(row, 7, UiKit::createActionItem(actionText, actionColor, woId, sts));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     // 操作列点击处理 - 通过按钮 clicked 信号触发
@@ -202,7 +201,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
           assigneeId = permQ.value(1).toLongLong();
         }
       }
-      if (!canOperateWorkOrder(sts, reporterId, assigneeId))
+      if (!UiKit::canOperateWorkOrder(sts, reporterId, assigneeId))
       {
         QMessageBox::warning(page,QStringLiteral("无权限"),
                              QStringLiteral("您没有权限执行此操作，请联系相关负责人。"));
@@ -218,7 +217,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
         if (retAccept != QMessageBox::Yes)
           return;
         DatabaseManager::instance().update("wo_work_order", id, {{"status", 1}, {"accept_time", QDateTime::currentDateTime()}, {"accept_by", user.id}});
-        showToast(QStringLiteral("工单已受理"), page);
+        UiKit::showToast(QStringLiteral("工单已受理"), page);
         loadWorkOrders();
       }
       else if (sts == 1)
@@ -281,7 +280,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
                     });
                     // 发送通知给维修人员
                     page->requestNotification(workerId, QStringLiteral("新工单已派单"), QStringLiteral("您有一个新的维修工单待处理"), 2, "work_order", (int)id);
-                    showToast(QStringLiteral("派单成功"), page);
+                    UiKit::showToast(QStringLiteral("派单成功"), page);
                     dlg.accept();
                     loadWorkOrders(); });
         dlgLayout->addWidget(buttons);
@@ -296,7 +295,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
         if (retStart != QMessageBox::Yes)
           return;
         DatabaseManager::instance().update("wo_work_order", id, {{"status", 3}});
-        showToast(QStringLiteral("已开始处理"), page);
+        UiKit::showToast(QStringLiteral("已开始处理"), page);
         loadWorkOrders();
       }
       else if (sts == 3)
@@ -346,7 +345,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
                         QString woTitle = woQ.value(1).toString();
                         page->requestNotification(reporterId, QStringLiteral("工单已完成"), QStringLiteral("您的报修「%1」已处理完成，请评价").arg(woTitle), 2, "work_order", (int)id);
                     }
-                    showToast(QStringLiteral("工单已完成"), page);
+                    UiKit::showToast(QStringLiteral("工单已完成"), page);
                     dlg.accept();
                     loadWorkOrders(); });
         dlgLayout->addWidget(buttons);
@@ -400,7 +399,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
                         {"create_by", user.id}, {"create_time", QDateTime::currentDateTime()}
                     });
                     DatabaseManager::instance().update("wo_work_order", id, {{"status", 6}});
-                    showToast(QStringLiteral("评价提交成功"), page);
+                    UiKit::showToast(QStringLiteral("评价提交成功"), page);
                     dlg.accept();
                     loadWorkOrders(); });
         dlgLayout->addWidget(buttons);
@@ -430,7 +429,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
     QObject::connect(myTasksCheck, &QCheckBox::toggled, page, [=]()
             { loadWorkOrders(); });
     QObject::connect(exportBtn, &QPushButton::clicked, page, [table, page]()
-            { exportTableToCsv(table, QStringLiteral("工单列表.csv"), page); });
+            { UiKit::exportTableToCsv(table, QStringLiteral("工单列表.csv"), page); });
 
     // New work order dialog
     QObject::connect(newBtn, &QPushButton::clicked, page, [=]()
@@ -558,7 +557,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
                     {"status", 0}, {"source", 0},
                     {"create_by", user.id}, {"create_time", QDateTime::currentDateTime()}
                 });
-                showToast(QStringLiteral("工单提交成功"), page);
+                UiKit::showToast(QStringLiteral("工单提交成功"), page);
                 dlg.accept();
                 loadWorkOrders();
             });
@@ -569,7 +568,7 @@ void PageFactory::buildPropertyWorkorder(BasePage *page, QVBoxLayout *layout, QT
 void PageFactory::buildPropertyComplaint(BasePage *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint)
 {
     // Page header
-    layout->addWidget(createPageHeader(QStringLiteral("ic_chat"), QStringLiteral("投诉建议管理"), QStringLiteral("管理居民投诉和建议，跟踪处理进度和满意度评价"), moduleColor("complaint"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_chat"), QStringLiteral("投诉建议管理"), QStringLiteral("管理居民投诉和建议，跟踪处理进度和满意度评价"), UiKit::moduleColor("complaint"), page));
     layout->addSpacing(12);
 
     // Toolbar
@@ -638,7 +637,7 @@ void PageFactory::buildPropertyComplaint(BasePage *page, QVBoxLayout *layout, QT
         cntBinds << ":status" << sm[filterIdx];
       }
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       q.prepare(sql);
       if (!searchText.isEmpty())
@@ -663,7 +662,7 @@ void PageFactory::buildPropertyComplaint(BasePage *page, QVBoxLayout *layout, QT
         table->setItem(row, 3, new QTableWidgetItem(q.value(4).toString()));
         table->setItem(row, 4, new QTableWidgetItem(q.value(5).toDateTime().toString("yyyy-MM-dd")));
         QColor cmpColor(WorkOrderStatus::color(q.value(6).toInt()));
-        auto *stsItem = createTagTableItem(WorkOrderStatus::label(q.value(6).toInt()), QColor(cmpColor.red(), cmpColor.green(), cmpColor.blue(), 30), cmpColor);
+        auto *stsItem = UiKit::createTagTableItem(WorkOrderStatus::label(q.value(6).toInt()), QColor(cmpColor.red(), cmpColor.green(), cmpColor.blue(), 30), cmpColor);
         table->setItem(row, 5, stsItem);
         qint64 cmpId = q.value(0).toLongLong();
         int cmpSts = q.value(6).toInt();
@@ -684,10 +683,10 @@ void PageFactory::buildPropertyComplaint(BasePage *page, QVBoxLayout *layout, QT
           actText = QStringLiteral("查看");
           actColor = "#b45309";
         }
-        table->setItem(row, 6, createActionItem(actText, actColor, cmpId, cmpSts));
+        table->setItem(row, 6, UiKit::createActionItem(actText, actColor, cmpId, cmpSts));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -759,7 +758,7 @@ void PageFactory::buildPropertyComplaint(BasePage *page, QVBoxLayout *layout, QT
                                 QStringLiteral("您的投诉建议已受理，正在处理中"), 1, "complaint", (int)id);
                         }
                     }
-                    showToast(QStringLiteral("受理成功"), page);
+                    UiKit::showToast(QStringLiteral("受理成功"), page);
                     dlg.accept();
                     loadComplaints(); });
         dlgLayout->addWidget(buttons);
@@ -822,7 +821,7 @@ void PageFactory::buildPropertyComplaint(BasePage *page, QVBoxLayout *layout, QT
                                 QStringLiteral("您的投诉建议已处理回复，请查看"), 1, "complaint", (int)id);
                         }
                     }
-                    showToast(QStringLiteral("回复成功"), page);
+                    UiKit::showToast(QStringLiteral("回复成功"), page);
                     dlg.accept();
                     loadComplaints(); });
         dlgLayout->addWidget(buttons);
@@ -893,7 +892,7 @@ void PageFactory::buildPropertyComplaint(BasePage *page, QVBoxLayout *layout, QT
                     {"reporter_phone", user.phone}, {"status", 0}, {"source", 2},
                     {"create_by", user.id}, {"create_time", QDateTime::currentDateTime()}
                 });
-                showToast(QStringLiteral("提交成功"), page);
+                UiKit::showToast(QStringLiteral("提交成功"), page);
                 dlg.accept(); loadComplaints();
             });
             dlgLayout->addWidget(buttons);
@@ -903,7 +902,7 @@ void PageFactory::buildPropertyComplaint(BasePage *page, QVBoxLayout *layout, QT
 void PageFactory::buildPropertyInspection(BasePage *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint)
 {
     // Property inspection - reuse from governance
-    layout->addWidget(createPageHeader(QStringLiteral("ic_search"), QStringLiteral("物业巡检管理"), QStringLiteral("物业巡检计划和记录查看"), moduleColor("inspection"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_search"), QStringLiteral("物业巡检管理"), QStringLiteral("物业巡检计划和记录查看"), UiKit::moduleColor("inspection"), page));
     layout->addSpacing(12);
 
     // Toolbar
@@ -951,7 +950,7 @@ void PageFactory::buildPropertyInspection(BasePage *page, QVBoxLayout *layout, Q
       if (statusFilter >= 0)
         cntBinds << ":status" << (statusFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       inspQ.prepare(sql);
       if (!searchText.isEmpty())
@@ -970,11 +969,11 @@ void PageFactory::buildPropertyInspection(BasePage *page, QVBoxLayout *layout, Q
         table->setItem(iRow, 2, new QTableWidgetItem(inspQ.value(2).toString()));
         table->setItem(iRow, 3, new QTableWidgetItem(inspQ.value(3).toString()));
         int iSts = inspQ.value(4).toInt();
-        auto *stsItem = createTagTableItem(iSts == 0 ? QStringLiteral("进行中") : QStringLiteral("已完成"), QColor(iSts == 0 ? "#e6f4ff" : "#f6ffed"), QColor(iSts == 0 ? "#b45309" : "#15803d"));
+        auto *stsItem = UiKit::createTagTableItem(iSts == 0 ? QStringLiteral("进行中") : QStringLiteral("已完成"), QColor(iSts == 0 ? "#e6f4ff" : "#f6ffed"), QColor(iSts == 0 ? "#b45309" : "#15803d"));
         table->setItem(iRow, 4, stsItem);
         iRow++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     loadInspections();
@@ -987,7 +986,7 @@ void PageFactory::buildPropertyInspection(BasePage *page, QVBoxLayout *layout, Q
 void PageFactory::buildPropertyAnnouncement(BasePage *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint)
 {
     // Page header
-    layout->addWidget(createPageHeader(QStringLiteral("ic_announce"), QStringLiteral("公告通知管理"), QStringLiteral("发布和管理小区公告、社区通知、物业公告和系统公告"), moduleColor("announcement"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_announce"), QStringLiteral("公告通知管理"), QStringLiteral("发布和管理小区公告、社区通知、物业公告和系统公告"), UiKit::moduleColor("announcement"), page));
     layout->addSpacing(12);
 
     // Toolbar
@@ -1048,7 +1047,7 @@ void PageFactory::buildPropertyAnnouncement(BasePage *page, QVBoxLayout *layout,
       if (filterType >= 0)
         cntBinds << ":type" << (filterType);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       q.prepare(sql);
       if (!searchText.isEmpty())
@@ -1069,10 +1068,10 @@ void PageFactory::buildPropertyAnnouncement(BasePage *page, QVBoxLayout *layout,
         table->setItem(row, 4, new QTableWidgetItem(QString::number(q.value(5).toInt())));
         qint64 annId = q.value(0).toLongLong();
         QString annTitle = q.value(1).toString();
-        table->setItem(row, 5, createActionItem(QStringLiteral("查看"), "#b45309", annId, annTitle));
+        table->setItem(row, 5, UiKit::createActionItem(QStringLiteral("查看"), "#b45309", annId, annTitle));
         row++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     std::function<void(qint64, QString)> handleAnnouncementAction = [page](qint64 id, QString title)
@@ -1159,7 +1158,7 @@ void PageFactory::buildPropertyAnnouncement(BasePage *page, QVBoxLayout *layout,
                             1, "announcement", static_cast<int>(annId));
                     }
                 }
-                showToast(QStringLiteral("公告发布成功"), page);
+                UiKit::showToast(QStringLiteral("公告发布成功"), page);
                 dlg.accept();
                 loadAnnouncements();
             });
@@ -1170,7 +1169,7 @@ void PageFactory::buildPropertyAnnouncement(BasePage *page, QVBoxLayout *layout,
 void PageFactory::buildPropertyVisitor(BasePage *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint)
 {
     // Page header
-    layout->addWidget(createPageHeader(QStringLiteral("ic_visitor"), QStringLiteral("访客管理"), QStringLiteral("访客登记、临时通行码管理和访客记录查看"), moduleColor("visitor"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_visitor"), QStringLiteral("访客管理"), QStringLiteral("访客登记、临时通行码管理和访客记录查看"), UiKit::moduleColor("visitor"), page));
     layout->addSpacing(12);
 
     // Stats
@@ -1193,7 +1192,7 @@ void PageFactory::buildPropertyVisitor(BasePage *page, QVBoxLayout *layout, QTab
       cl->addWidget(indicator);
       cl->addWidget(tl);
       cl->addWidget(vl);
-      applyCardShadow(card);
+      UiKit::applyCardShadow(card);
       return card;
     };
     QSqlQuery todayVisQ("SELECT COUNT(*) FROM cm_visitor WHERE date(arrive_time) = date('now') AND del_flag = 0");
@@ -1259,7 +1258,7 @@ void PageFactory::buildPropertyVisitor(BasePage *page, QVBoxLayout *layout, QTab
       if (visFilter >= 0)
         cntBinds << ":status" << (visFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       visQ.prepare(sql);
       if (!visSearch.isEmpty())
@@ -1280,15 +1279,15 @@ void PageFactory::buildPropertyVisitor(BasePage *page, QVBoxLayout *layout, QTab
         table->setItem(vRow, 3, new QTableWidgetItem(visQ.value(4).toDateTime().toString("yyyy-MM-dd HH:mm")));
         table->setItem(vRow, 4, new QTableWidgetItem(visQ.value(5).isNull() ? "-" : visQ.value(5).toDateTime().toString("yyyy-MM-dd HH:mm")));
         int vSts = visQ.value(6).toInt();
-        auto *stsItem = createTagTableItem(vSts == 0 ? QStringLiteral("在访") : QStringLiteral("已离开"), QColor(vSts == 0 ? "#e6f4ff" : "#e2e8f0"), QColor(vSts == 0 ? "#b45309" : "#64748b"));
+        auto *stsItem = UiKit::createTagTableItem(vSts == 0 ? QStringLiteral("在访") : QStringLiteral("已离开"), QColor(vSts == 0 ? "#e6f4ff" : "#e2e8f0"), QColor(vSts == 0 ? "#b45309" : "#64748b"));
         table->setItem(vRow, 5, stsItem);
         // 操作列
         QString actText = (vSts == 0) ? QStringLiteral("签离") : QStringLiteral("-");
         QString actColor = (vSts == 0) ? "#b45309" : "#64748b";
-        table->setItem(vRow, 6, createActionItem(actText, actColor, visId, vSts));
+        table->setItem(vRow, 6, UiKit::createActionItem(actText, actColor, visId, vSts));
         vRow++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     QObject::connect(visSearchEdit, &QLineEdit::textChanged, page, [=]()
@@ -1305,7 +1304,7 @@ void PageFactory::buildPropertyVisitor(BasePage *page, QVBoxLayout *layout, QTab
       if (ret != QMessageBox::Yes)
         return;
       DatabaseManager::instance().update("cm_visitor", visId, {{"status", 1}, {"leave_time", QDateTime::currentDateTime()}, {"update_time", QDateTime::currentDateTime()}});
-      showToast(QStringLiteral("访客已签离"), page);
+      UiKit::showToast(QStringLiteral("访客已签离"), page);
       loadVisitors();
     };
     *visActionHandlerPtr = handleVisitorAction;
@@ -1405,7 +1404,7 @@ void PageFactory::buildPropertyVisitor(BasePage *page, QVBoxLayout *layout, QTab
                     {"update_by", user.id},
                     {"update_time", now}
                 });
-                showToast(QStringLiteral("访客登记成功"), page);
+                UiKit::showToast(QStringLiteral("访客登记成功"), page);
                 dlg.accept();
                 loadVisitors();
             });
@@ -1416,7 +1415,7 @@ void PageFactory::buildPropertyVisitor(BasePage *page, QVBoxLayout *layout, QTab
 void PageFactory::buildPropertyTopic(BasePage *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint)
 {
     // Page header
-    layout->addWidget(createPageHeader(QStringLiteral("ic_list"), QStringLiteral("业委会议题管理"), QStringLiteral("议题发布、投票管理和结果公示"), moduleColor("topic"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_list"), QStringLiteral("业委会议题管理"), QStringLiteral("议题发布、投票管理和结果公示"), UiKit::moduleColor("topic"), page));
     layout->addSpacing(12);
 
     // Toolbar
@@ -1478,7 +1477,7 @@ void PageFactory::buildPropertyTopic(BasePage *page, QVBoxLayout *layout, QTable
       if (statusFilter >= 0)
         cntBinds << ":status" << (statusFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       topicQ.prepare(sql);
       if (!searchText.isEmpty())
@@ -1518,7 +1517,7 @@ void PageFactory::buildPropertyTopic(BasePage *page, QVBoxLayout *layout, QTable
           resultText = QStringLiteral("已结束");
         }
         table->setItem(tRow, 4, new QTableWidgetItem(resultText));
-        auto *stsItem = createTagTableItem(tSts == 0 ? QStringLiteral("投票中") : tSts == 1 ? QStringLiteral("已结束")
+        auto *stsItem = UiKit::createTagTableItem(tSts == 0 ? QStringLiteral("投票中") : tSts == 1 ? QStringLiteral("已结束")
                                                                                             : QStringLiteral("已通过"),
                                            QColor(tSts == 0 ? "#e6f4ff" : tSts == 1 ? "#e2e8f0"
                                                                                     : "#f6ffed"),
@@ -1540,10 +1539,10 @@ void PageFactory::buildPropertyTopic(BasePage *page, QVBoxLayout *layout, QTable
           actText = QStringLiteral("查看");
           actColor = "#b45309";
         }
-        table->setItem(tRow, 6, createActionItem(actText, actColor, tSts, needVote));
+        table->setItem(tRow, 6, UiKit::createActionItem(actText, actColor, tSts, needVote));
         tRow++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     QObject::connect(searchEdit, &QLineEdit::textChanged, page, [=]()
@@ -1628,7 +1627,7 @@ void PageFactory::buildPropertyTopic(BasePage *page, QVBoxLayout *layout, QTable
                             {"update_time", QDateTime::currentDateTime()}
                         });
                     }
-                    showToast(QStringLiteral("投票成功"), page);
+                    UiKit::showToast(QStringLiteral("投票成功"), page);
                     dlg.accept();
                     loadTopics(); });
         dlgLayout->addWidget(buttons);
@@ -1741,7 +1740,7 @@ void PageFactory::buildPropertyTopic(BasePage *page, QVBoxLayout *layout, QTable
                     data.insert("vote_end", voteEndEdit->dateTime());
                 }
                 d.insert("oc_topic", data);
-                showToast(QStringLiteral("议题发布成功"), page);
+                UiKit::showToast(QStringLiteral("议题发布成功"), page);
                 dlg.accept();
                 loadTopics();
             });
@@ -1752,7 +1751,7 @@ void PageFactory::buildPropertyTopic(BasePage *page, QVBoxLayout *layout, QTable
 void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint)
 {
     // T33 停车管理
-    layout->addWidget(createPageHeader(QStringLiteral("ic_car"), QStringLiteral("停车管理"), QStringLiteral("车位管理、月卡办理和临停记录查看"), moduleColor("parking"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_car"), QStringLiteral("停车管理"), QStringLiteral("车位管理、月卡办理和临停记录查看"), UiKit::moduleColor("parking"), page));
     layout->addSpacing(12);
 
     // Stats
@@ -1775,7 +1774,7 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
       cl->addWidget(indicator);
       cl->addWidget(tl);
       cl->addWidget(vl);
-      applyCardShadow(card);
+      UiKit::applyCardShadow(card);
       return card;
     };
     QSqlQuery spaceQ("SELECT COUNT(*) FROM cm_parking_space WHERE del_flag = 0");
@@ -1822,13 +1821,13 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
     spaceTable->setAlternatingRowColors(true);
     spaceTable->horizontalHeader()->setStretchLastSection(true);
     spaceTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    spaceTable->setStyleSheet(TABLE_STYLE);
+    spaceTable->setStyleSheet(UiKit::TABLE_STYLE);
     spaceTable->setShowGrid(false);
     spaceTable->verticalHeader()->setVisible(false);
     spaceTable->setSortingEnabled(true);
     spaceTable->setColumnCount(5);
     spaceTable->setHorizontalHeaderLabels({QStringLiteral("车位编号"), QStringLiteral("区域"), QStringLiteral("类型"), QStringLiteral("关联车辆"), QStringLiteral("状态")});
-    auto *spaceEmptyHint = createEmptyHintLabel(QStringLiteral("暂无车位记录"), spacePage);
+    auto *spaceEmptyHint = UiKit::createEmptyHintLabel(QStringLiteral("暂无车位记录"), spacePage);
     std::function<void()> loadSpaces = [spaceTable, spaceSearchEdit, spaceStatusCombo, spaceEmptyHint]()
     {
       spaceTable->setRowCount(0);
@@ -1855,11 +1854,11 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
         spaceTable->setItem(spRow, 2, new QTableWidgetItem(spQ.value(2).toInt() == 1 ? QStringLiteral("产权车位") : QStringLiteral("租赁车位")));
         spaceTable->setItem(spRow, 3, new QTableWidgetItem(spQ.value(3).toString()));
         int spSts = spQ.value(4).toInt();
-        auto *stsItem = createTagTableItem(spSts == 0 ? QStringLiteral("空闲") : QStringLiteral("已占用"), QColor(spSts == 0 ? "#f6ffed" : "#e6f4ff"), QColor(spSts == 0 ? "#15803d" : "#b45309"));
+        auto *stsItem = UiKit::createTagTableItem(spSts == 0 ? QStringLiteral("空闲") : QStringLiteral("已占用"), QColor(spSts == 0 ? "#f6ffed" : "#e6f4ff"), QColor(spSts == 0 ? "#15803d" : "#b45309"));
         spaceTable->setItem(spRow, 4, stsItem);
         spRow++;
       }
-      syncEmptyHint(spaceTable, spaceEmptyHint);
+      UiKit::syncEmptyHint(spaceTable, spaceEmptyHint);
     };
     loadSpaces();
     QObject::connect(spaceSearchEdit, &QLineEdit::textChanged, page, [=]()
@@ -1902,7 +1901,7 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
     cardTable->setAlternatingRowColors(true);
     cardTable->horizontalHeader()->setStretchLastSection(true);
     cardTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    cardTable->setStyleSheet(TABLE_STYLE);
+    cardTable->setStyleSheet(UiKit::TABLE_STYLE);
     cardTable->setShowGrid(false);
     cardTable->verticalHeader()->setVisible(false);
     cardTable->setSortingEnabled(true);
@@ -1935,7 +1934,7 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
       if (statusFilter >= 0)
         cntBinds << ":status" << (statusFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       cardQ.prepare(sql);
       if (!searchText.isEmpty())
@@ -1956,7 +1955,7 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
         QString period = cardQ.value(4).toString() + " ~ " + cardQ.value(5).toString();
         cardTable->setItem(cRow, 3, new QTableWidgetItem(period));
         int cSts = cardQ.value(6).toInt();
-        auto *stsItem = createTagTableItem(cSts == 1 ? QStringLiteral("有效") : cSts == 2 ? QStringLiteral("待续费")
+        auto *stsItem = UiKit::createTagTableItem(cSts == 1 ? QStringLiteral("有效") : cSts == 2 ? QStringLiteral("待续费")
                                                                                           : QStringLiteral("已过期"),
                                            QColor(cSts == 1 ? "#f6ffed" : cSts == 2 ? "#fff7e6"
                                                                                     : "#fff1f0"),
@@ -1970,7 +1969,7 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
         // 操作列: status=0(已过期) 或 2(待续费) 时显示"续费"
         QString actText = (cSts == 0 || cSts == 2) ? QStringLiteral("续费") : QStringLiteral("-");
         QString actColor = (cSts == 0 || cSts == 2) ? "#b45309" : "#64748b";
-        cardTable->setItem(cRow, 6, createActionItem(actText, actColor, cSts, cType));
+        cardTable->setItem(cRow, 6, UiKit::createActionItem(actText, actColor, cSts, cType));
         cRow++;
       }
     };
@@ -2003,7 +2002,7 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
       if (ret != QMessageBox::Yes)
         return;
       DatabaseManager::instance().update("pm_monthly_card", cardId, {{"end_date", newEnd}, {"status", 1}, {"update_time", QDateTime::currentDateTime()}});
-      showToast(QStringLiteral("月卡续费成功"), page);
+      UiKit::showToast(QStringLiteral("月卡续费成功"), page);
       loadCards();
     };
     *cardActionHandlerPtr = handleCardAction;
@@ -2103,7 +2102,7 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
                     {"update_by", user.id},
                     {"update_time", now}
                 });
-                showToast(QStringLiteral("月卡办理成功"), page);
+                UiKit::showToast(QStringLiteral("月卡办理成功"), page);
                 dlg.accept();
                 loadCards();
             });
@@ -2117,7 +2116,7 @@ void PageFactory::buildPropertyParking(BasePage *page, QVBoxLayout *layout, QTab
 void PageFactory::buildPropertyBilling(BasePage *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint)
 {
     // T31 物业缴费
-    layout->addWidget(createPageHeader(QStringLiteral("ic_money"), QStringLiteral("物业缴费"), QStringLiteral("物业费账单生成、缴费记录查看（演示级，不涉及真实支付）"), moduleColor("billing"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_money"), QStringLiteral("物业缴费"), QStringLiteral("物业费账单生成、缴费记录查看（演示级，不涉及真实支付）"), UiKit::moduleColor("billing"), page));
     layout->addSpacing(12);
 
     // Stats
@@ -2140,7 +2139,7 @@ void PageFactory::buildPropertyBilling(BasePage *page, QVBoxLayout *layout, QTab
       cl->addWidget(indicator);
       cl->addWidget(tl);
       cl->addWidget(vl);
-      applyCardShadow(card);
+      UiKit::applyCardShadow(card);
       return card;
     };
     QSqlQuery billTotalQ("SELECT COALESCE(SUM(amount),0) FROM pm_bill WHERE period = strftime('%Y-%m','now') AND del_flag = 0");
@@ -2240,7 +2239,7 @@ void PageFactory::buildPropertyBilling(BasePage *page, QVBoxLayout *layout, QTab
       if (!periodFilter.isEmpty())
         cntBinds << ":period" << (periodFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       billQ.prepare(sql);
       if (!billSearch.isEmpty())
@@ -2264,7 +2263,7 @@ void PageFactory::buildPropertyBilling(BasePage *page, QVBoxLayout *layout, QTab
         table->setItem(bRow, 3, new NumericSortTableWidgetItem(QString("¥%1").arg(billQ.value(3).toDouble(), 0, 'f', 2)));
         table->setItem(bRow, 4, new QTableWidgetItem(billQ.value(4).toString()));
         int bSts = billQ.value(5).toInt();
-        auto *stsItem = createTagTableItem(bSts == 1 ? QStringLiteral("已缴费") : bSts == 2 ? QStringLiteral("逾期")
+        auto *stsItem = UiKit::createTagTableItem(bSts == 1 ? QStringLiteral("已缴费") : bSts == 2 ? QStringLiteral("逾期")
                                                                                             : QStringLiteral("待缴费"),
                                            QColor(bSts == 1 ? "#f6ffed" : bSts == 2 ? "#fff1f0"
                                                                                     : "#fff7e6"),
@@ -2274,7 +2273,7 @@ void PageFactory::buildPropertyBilling(BasePage *page, QVBoxLayout *layout, QTab
         bRow++;
       }
       table->setSortingEnabled(true);
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     loadBills();
@@ -2291,7 +2290,7 @@ void PageFactory::buildPropertyBilling(BasePage *page, QVBoxLayout *layout, QTab
 void PageFactory::buildPropertyIncome(BasePage *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint)
 {
     // T36 公共收益公示
-    layout->addWidget(createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("公共收益公示"), QStringLiteral("业委会公共收益和支出明细公示"), moduleColor("income"), page));
+    layout->addWidget(UiKit::createPageHeader(QStringLiteral("ic_chart"), QStringLiteral("公共收益公示"), QStringLiteral("业委会公共收益和支出明细公示"), UiKit::moduleColor("income"), page));
     layout->addSpacing(12);
 
     // Toolbar
@@ -2339,7 +2338,7 @@ void PageFactory::buildPropertyIncome(BasePage *page, QVBoxLayout *layout, QTabl
       if (statusFilter >= 0)
         cntBinds << ":status" << (statusFilter);
       cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(executeCountQuery(sql, cntBinds));
+      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       incQ.prepare(sql);
       if (!searchText.isEmpty())
@@ -2363,12 +2362,12 @@ void PageFactory::buildPropertyIncome(BasePage *page, QVBoxLayout *layout, QTabl
         table->setItem(iRow, 4, new QTableWidgetItem(incQ.value(4).toDateTime().toString("yyyy-MM-dd")));
         int incSts = incQ.value(5).toInt();
         auto *stsItem = incSts == 0
-                            ? createTagTableItem(QStringLiteral("已公示"), QColor("#f0fdf4"), QColor("#15803d"))
-                            : createTagTableItem(QStringLiteral("待审核"), QColor("#fffbeb"), QColor("#d97706"));
+                            ? UiKit::createTagTableItem(QStringLiteral("已公示"), QColor("#f0fdf4"), QColor("#15803d"))
+                            : UiKit::createTagTableItem(QStringLiteral("待审核"), QColor("#fffbeb"), QColor("#d97706"));
         table->setItem(iRow, 5, stsItem);
         iRow++;
       }
-      syncEmptyHint(table, emptyHint);
+      UiKit::syncEmptyHint(table, emptyHint);
       pb->refreshData();
     };
     loadIncomes();

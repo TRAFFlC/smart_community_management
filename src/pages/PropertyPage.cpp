@@ -1,7 +1,6 @@
 #include "pages/PageFactory.h"
 #include "PagesCommon.h"
 
-using namespace UiKit;
 // ========== Property Pages ==========
 BasePage *PageFactory::createPropertyPage(const QString &sub)
 {
@@ -12,7 +11,7 @@ BasePage *PageFactory::createPropertyPage(const QString &sub)
   auto *table = new QTableWidget(page);
   table->setAlternatingRowColors(true);
   table->setSelectionBehavior(QAbstractItemView::SelectRows);
-  table->setStyleSheet(TABLE_STYLE);
+  table->setStyleSheet(UiKit::TABLE_STYLE);
   table->setShowGrid(false);
   table->verticalHeader()->setVisible(false);
   table->setSortingEnabled(true);
@@ -39,7 +38,7 @@ BasePage *PageFactory::createPropertyPage(const QString &sub)
     propEmptyText = QStringLiteral("暂无收益记录");
   else
     propEmptyText = QStringLiteral("暂无数据");
-  auto *emptyHint = createEmptyHintLabel(propEmptyText, page);
+  auto *emptyHint = UiKit::createEmptyHintLabel(propEmptyText, page);
 
 
   if (sub == "workorder") { buildPropertyWorkorder(page, layout, table, db, emptyHint); return page; }

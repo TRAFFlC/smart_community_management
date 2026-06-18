@@ -1,6 +1,7 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+#include <QMap>
 #include <QString>
 
 // ============================================================================
@@ -13,396 +14,445 @@
 // 仍为 int 类型，使用时需注意区分命名空间。
 // ============================================================================
 
+// ----------------------------------------------------------------------------
+// 通用枚举助手：根据静态映射表返回标签/颜色，未命中时返回默认值
+// ----------------------------------------------------------------------------
+template<typename T>
+struct EnumHelper {
+    static QString label(T value, const QMap<T, QString>& labels) {
+        auto it = labels.find(value);
+        return it != labels.end() ? it.value() : QStringLiteral("未知");
+    }
+    static QString label(int value, const QMap<T, QString>& labels) {
+        return label(static_cast<T>(value), labels);
+    }
+    static QString color(T value, const QMap<T, QString>& colors) {
+        auto it = colors.find(value);
+        return it != colors.end() ? it.value() : QStringLiteral("#64748b");
+    }
+    static QString color(int value, const QMap<T, QString>& colors) {
+        return color(static_cast<T>(value), colors);
+    }
+};
+
 namespace UserStatus {
     enum Type : int { Normal = 0, Disabled = 1, Locked = 2 };
-    inline QString label(int v) {
-        switch(v) {
-            case Normal: return QStringLiteral("正常");
-            case Disabled: return QStringLiteral("禁用");
-            case Locked: return QStringLiteral("锁定");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Normal, QStringLiteral("正常") },
+            { Disabled, QStringLiteral("禁用") },
+            { Locked, QStringLiteral("锁定") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace UserType {
     enum Type : int { Resident = 0, Staff = 1, ServiceProvider = 2, Admin = 3 };
-    inline QString label(int v) {
-        switch(v) {
-            case Resident: return QStringLiteral("居民");
-            case Staff: return QStringLiteral("工作人员");
-            case ServiceProvider: return QStringLiteral("服务商");
-            case Admin: return QStringLiteral("管理员");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Resident, QStringLiteral("居民") },
+            { Staff, QStringLiteral("工作人员") },
+            { ServiceProvider, QStringLiteral("服务商") },
+            { Admin, QStringLiteral("管理员") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace OrgType {
     enum Type : int { Platform = 1, Street = 2, Community = 3, PropertyCompany = 4,
            OwnerCommittee = 5, ServiceOrg = 6, SocialOrg = 7 };
-    inline QString label(int v) {
-        switch(v) {
-            case Platform: return QStringLiteral("平台");
-            case Street: return QStringLiteral("街道");
-            case Community: return QStringLiteral("社区");
-            case PropertyCompany: return QStringLiteral("物业公司");
-            case OwnerCommittee: return QStringLiteral("业委会");
-            case ServiceOrg: return QStringLiteral("服务商");
-            case SocialOrg: return QStringLiteral("社会组织");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Platform, QStringLiteral("平台") },
+            { Street, QStringLiteral("街道") },
+            { Community, QStringLiteral("社区") },
+            { PropertyCompany, QStringLiteral("物业公司") },
+            { OwnerCommittee, QStringLiteral("业委会") },
+            { ServiceOrg, QStringLiteral("服务商") },
+            { SocialOrg, QStringLiteral("社会组织") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace DataScope {
     enum Type : int { Platform = 1, Street = 2, Community = 3, Estate = 4,
            Building = 5, Personal = 6, Collaborative = 7 };
-    inline QString label(int v) {
-        switch(v) {
-            case Platform: return QStringLiteral("平台级");
-            case Street: return QStringLiteral("街道级");
-            case Community: return QStringLiteral("社区级");
-            case Estate: return QStringLiteral("小区级");
-            case Building: return QStringLiteral("楼栋级");
-            case Personal: return QStringLiteral("个人级");
-            case Collaborative: return QStringLiteral("协同级");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Platform, QStringLiteral("平台级") },
+            { Street, QStringLiteral("街道级") },
+            { Community, QStringLiteral("社区级") },
+            { Estate, QStringLiteral("小区级") },
+            { Building, QStringLiteral("楼栋级") },
+            { Personal, QStringLiteral("个人级") },
+            { Collaborative, QStringLiteral("协同级") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace HouseStatus {
     enum Type : int { Vacant = 0, OwnerOccupied = 1, Rented = 2, Sold = 3 };
-    inline QString label(int v) {
-        switch(v) {
-            case Vacant: return QStringLiteral("空置");
-            case OwnerOccupied: return QStringLiteral("自住");
-            case Rented: return QStringLiteral("出租");
-            case Sold: return QStringLiteral("已售");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Vacant, QStringLiteral("空置") },
+            { OwnerOccupied, QStringLiteral("自住") },
+            { Rented, QStringLiteral("出租") },
+            { Sold, QStringLiteral("已售") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace HouseRelation {
     enum Type : int { Owner = 1, Resident = 2, Tenant = 3, FamilyMember = 4 };
-    inline QString label(int v) {
-        switch(v) {
-            case Owner: return QStringLiteral("产权人");
-            case Resident: return QStringLiteral("居住人");
-            case Tenant: return QStringLiteral("租户");
-            case FamilyMember: return QStringLiteral("家庭成员");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Owner, QStringLiteral("产权人") },
+            { Resident, QStringLiteral("居住人") },
+            { Tenant, QStringLiteral("租户") },
+            { FamilyMember, QStringLiteral("家庭成员") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace VehicleType {
     enum Type : int { Sedan = 1, SUV = 2, Electric = 3, Other = 4 };
-    inline QString label(int v) {
-        switch(v) {
-            case Sedan: return QStringLiteral("轿车");
-            case SUV: return QStringLiteral("SUV");
-            case Electric: return QStringLiteral("电动车");
-            case Other: return QStringLiteral("其他");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Sedan, QStringLiteral("轿车") },
+            { SUV, QStringLiteral("SUV") },
+            { Electric, QStringLiteral("电动车") },
+            { Other, QStringLiteral("其他") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace FacilityType {
     enum Type : int { Elevator = 1, FireFight = 2, AccessControl = 3, Camera = 4,
            Fitness = 5, Lighting = 6, Other = 7 };
-    inline QString label(int v) {
-        switch(v) {
-            case Elevator: return QStringLiteral("电梯");
-            case FireFight: return QStringLiteral("消防");
-            case AccessControl: return QStringLiteral("门禁");
-            case Camera: return QStringLiteral("摄像头");
-            case Fitness: return QStringLiteral("健身器材");
-            case Lighting: return QStringLiteral("照明");
-            case Other: return QStringLiteral("其他");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Elevator, QStringLiteral("电梯") },
+            { FireFight, QStringLiteral("消防") },
+            { AccessControl, QStringLiteral("门禁") },
+            { Camera, QStringLiteral("摄像头") },
+            { Fitness, QStringLiteral("健身器材") },
+            { Lighting, QStringLiteral("照明") },
+            { Other, QStringLiteral("其他") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace SpecialGroupType {
     enum Type : int { ElderlyAlone = 1, Disabled = 2, LowIncome = 3, PriorityHelp = 4, Other = 5 };
-    inline QString label(int v) {
-        switch(v) {
-            case ElderlyAlone: return QStringLiteral("独居老人");
-            case Disabled: return QStringLiteral("残障人士");
-            case LowIncome: return QStringLiteral("低保户");
-            case PriorityHelp: return QStringLiteral("重点帮扶");
-            case Other: return QStringLiteral("其他");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { ElderlyAlone, QStringLiteral("独居老人") },
+            { Disabled, QStringLiteral("残障人士") },
+            { LowIncome, QStringLiteral("低保户") },
+            { PriorityHelp, QStringLiteral("重点帮扶") },
+            { Other, QStringLiteral("其他") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace WorkOrderType {
     enum Type : int { WaterElectric = 1, PublicFacility = 2, Environment = 3,
            SecurityOrder = 4, Other = 5 };
-    inline QString label(int v) {
-        switch(v) {
-            case WaterElectric: return QStringLiteral("水电维修");
-            case PublicFacility: return QStringLiteral("公共设施");
-            case Environment: return QStringLiteral("环境卫生");
-            case SecurityOrder: return QStringLiteral("安全秩序");
-            case Other: return QStringLiteral("其他");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { WaterElectric, QStringLiteral("水电维修") },
+            { PublicFacility, QStringLiteral("公共设施") },
+            { Environment, QStringLiteral("环境卫生") },
+            { SecurityOrder, QStringLiteral("安全秩序") },
+            { Other, QStringLiteral("其他") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace WorkOrderPriority {
     enum Type : int { Normal = 1, Urgent = 2, Critical = 3 };
-    inline QString label(int v) {
-        switch(v) {
-            case Normal: return QStringLiteral("普通");
-            case Urgent: return QStringLiteral("紧急");
-            case Critical: return QStringLiteral("特急");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Normal, QStringLiteral("普通") },
+            { Urgent, QStringLiteral("紧急") },
+            { Critical, QStringLiteral("特急") },
+        };
+        return map;
     }
-    inline QString color(int v) {
-        switch(v) {
-            case Normal: return "#64748b";
-            case Urgent: return "#d97706";
-            case Critical: return "#b91c1c";
-            default: return "#64748b";
-        }
+    inline const QMap<Type, QString>& colors() {
+        static const QMap<Type, QString> map {
+            { Normal, QStringLiteral("#64748b") },
+            { Urgent, QStringLiteral("#d97706") },
+            { Critical, QStringLiteral("#b91c1c") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
+    inline QString color(int v) { return EnumHelper<Type>::color(v, colors()); }
 }
 
 namespace WorkOrderStatus {
     enum Type : int { Pending = 0, Accepted = 1, Assigned = 2, Processing = 3,
            Completed = 4, Closed = 5, Evaluated = 6, Rejected = 7 };
-    inline QString label(int v) {
-        switch(v) {
-            case Pending: return QStringLiteral("待受理");
-            case Accepted: return QStringLiteral("已受理");
-            case Assigned: return QStringLiteral("已派单");
-            case Processing: return QStringLiteral("处理中");
-            case Completed: return QStringLiteral("已完成");
-            case Closed: return QStringLiteral("已关闭");
-            case Evaluated: return QStringLiteral("已评价");
-            case Rejected: return QStringLiteral("已退回");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Pending, QStringLiteral("待受理") },
+            { Accepted, QStringLiteral("已受理") },
+            { Assigned, QStringLiteral("已派单") },
+            { Processing, QStringLiteral("处理中") },
+            { Completed, QStringLiteral("已完成") },
+            { Closed, QStringLiteral("已关闭") },
+            { Evaluated, QStringLiteral("已评价") },
+            { Rejected, QStringLiteral("已退回") },
+        };
+        return map;
     }
-    inline QString color(int v) {
-        switch(v) {
-            case Pending: return "#d97706";
-            case Accepted: return "#2563eb";
-            case Assigned: return "#2563eb";
-            case Processing: return "#2563eb";
-            case Completed: return "#15803d";
-            case Closed: return "#64748b";
-            case Evaluated: return "#15803d";
-            case Rejected: return "#b91c1c";
-            default: return "#64748b";
-        }
+    inline const QMap<Type, QString>& colors() {
+        static const QMap<Type, QString> map {
+            { Pending, QStringLiteral("#d97706") },
+            { Accepted, QStringLiteral("#2563eb") },
+            { Assigned, QStringLiteral("#2563eb") },
+            { Processing, QStringLiteral("#2563eb") },
+            { Completed, QStringLiteral("#15803d") },
+            { Closed, QStringLiteral("#64748b") },
+            { Evaluated, QStringLiteral("#15803d") },
+            { Rejected, QStringLiteral("#b91c1c") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
+    inline QString color(int v) { return EnumHelper<Type>::color(v, colors()); }
 }
 
 namespace EventCategory {
     enum Type : int { Livelihood = 1, Environment = 2, FacilitySafety = 3,
            NeighborDispute = 4, SpecialCare = 5, CityOrder = 6, Emergency = 7 };
-    inline QString label(int v) {
-        switch(v) {
-            case Livelihood: return QStringLiteral("民生服务");
-            case Environment: return QStringLiteral("环境卫生");
-            case FacilitySafety: return QStringLiteral("设施安全");
-            case NeighborDispute: return QStringLiteral("邻里纠纷");
-            case SpecialCare: return QStringLiteral("特殊帮扶");
-            case CityOrder: return QStringLiteral("市容秩序");
-            case Emergency: return QStringLiteral("突发预警");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Livelihood, QStringLiteral("民生服务") },
+            { Environment, QStringLiteral("环境卫生") },
+            { FacilitySafety, QStringLiteral("设施安全") },
+            { NeighborDispute, QStringLiteral("邻里纠纷") },
+            { SpecialCare, QStringLiteral("特殊帮扶") },
+            { CityOrder, QStringLiteral("市容秩序") },
+            { Emergency, QStringLiteral("突发预警") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace EventPriority {
     enum Type : int { Normal = 1, Important = 2, Urgent = 3, Critical = 4 };
-    inline QString label(int v) {
-        switch(v) {
-            case Normal: return QStringLiteral("一般");
-            case Important: return QStringLiteral("重要");
-            case Urgent: return QStringLiteral("紧急");
-            case Critical: return QStringLiteral("特急");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Normal, QStringLiteral("一般") },
+            { Important, QStringLiteral("重要") },
+            { Urgent, QStringLiteral("紧急") },
+            { Critical, QStringLiteral("特急") },
+        };
+        return map;
     }
-    inline QString color(int v) {
-        switch(v) {
-            case Normal: return "#64748b";
-            case Important: return "#2563eb";
-            case Urgent: return "#d97706";
-            case Critical: return "#b91c1c";
-            default: return "#64748b";
-        }
+    inline const QMap<Type, QString>& colors() {
+        static const QMap<Type, QString> map {
+            { Normal, QStringLiteral("#64748b") },
+            { Important, QStringLiteral("#2563eb") },
+            { Urgent, QStringLiteral("#d97706") },
+            { Critical, QStringLiteral("#b91c1c") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
+    inline QString color(int v) { return EnumHelper<Type>::color(v, colors()); }
 }
 
 namespace EventStatus {
     enum Type : int { PendingReview = 0, Reviewed = 1, Assigned = 2, Processing = 3,
            Completed = 4, Rejected = 5, Archived = 6, Escalated = 7 };
-    inline QString label(int v) {
-        switch(v) {
-            case PendingReview: return QStringLiteral("待审核");
-            case Reviewed: return QStringLiteral("已审核");
-            case Assigned: return QStringLiteral("已分派");
-            case Processing: return QStringLiteral("处理中");
-            case Completed: return QStringLiteral("已完成");
-            case Rejected: return QStringLiteral("已退回");
-            case Archived: return QStringLiteral("已归档");
-            case Escalated: return QStringLiteral("已升级");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { PendingReview, QStringLiteral("待审核") },
+            { Reviewed, QStringLiteral("已审核") },
+            { Assigned, QStringLiteral("已分派") },
+            { Processing, QStringLiteral("处理中") },
+            { Completed, QStringLiteral("已完成") },
+            { Rejected, QStringLiteral("已退回") },
+            { Archived, QStringLiteral("已归档") },
+            { Escalated, QStringLiteral("已升级") },
+        };
+        return map;
     }
-    inline QString color(int v) {
-        switch(v) {
-            case PendingReview: return "#d97706";
-            case Reviewed: return "#2563eb";
-            case Assigned: return "#2563eb";
-            case Processing: return "#2563eb";
-            case Completed: return "#15803d";
-            case Rejected: return "#b91c1c";
-            case Archived: return "#64748b";
-            case Escalated: return "#b91c1c";
-            default: return "#64748b";
-        }
+    inline const QMap<Type, QString>& colors() {
+        static const QMap<Type, QString> map {
+            { PendingReview, QStringLiteral("#d97706") },
+            { Reviewed, QStringLiteral("#2563eb") },
+            { Assigned, QStringLiteral("#2563eb") },
+            { Processing, QStringLiteral("#2563eb") },
+            { Completed, QStringLiteral("#15803d") },
+            { Rejected, QStringLiteral("#b91c1c") },
+            { Archived, QStringLiteral("#64748b") },
+            { Escalated, QStringLiteral("#b91c1c") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
+    inline QString color(int v) { return EnumHelper<Type>::color(v, colors()); }
 }
 
 namespace EventSource {
     enum Type : int { GridWorker = 0, Resident = 1, Property = 2, Inspection = 3 };
-    inline QString label(int v) {
-        switch(v) {
-            case GridWorker: return QStringLiteral("网格员上报");
-            case Resident: return QStringLiteral("居民上报");
-            case Property: return QStringLiteral("物业上报");
-            case Inspection: return QStringLiteral("巡查发现");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { GridWorker, QStringLiteral("网格员上报") },
+            { Resident, QStringLiteral("居民上报") },
+            { Property, QStringLiteral("物业上报") },
+            { Inspection, QStringLiteral("巡查发现") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace VolunteerActivityType {
     enum Type : int { Environmental = 1, ElderlyCare = 2, Education = 3, Security = 4, Other = 5 };
-    inline QString label(int v) {
-        switch(v) {
-            case Environmental: return QStringLiteral("环保");
-            case ElderlyCare: return QStringLiteral("助老");
-            case Education: return QStringLiteral("文教");
-            case Security: return QStringLiteral("治安");
-            case Other: return QStringLiteral("其他");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Environmental, QStringLiteral("环保") },
+            { ElderlyCare, QStringLiteral("助老") },
+            { Education, QStringLiteral("文教") },
+            { Security, QStringLiteral("治安") },
+            { Other, QStringLiteral("其他") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace VolunteerActivityStatus {
     enum Type : int { Draft = 0, Recruiting = 1, InProgress = 2, Ended = 3, Cancelled = 4 };
-    inline QString label(int v) {
-        switch(v) {
-            case Draft: return QStringLiteral("草稿");
-            case Recruiting: return QStringLiteral("招募中");
-            case InProgress: return QStringLiteral("进行中");
-            case Ended: return QStringLiteral("已结束");
-            case Cancelled: return QStringLiteral("已取消");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Draft, QStringLiteral("草稿") },
+            { Recruiting, QStringLiteral("招募中") },
+            { InProgress, QStringLiteral("进行中") },
+            { Ended, QStringLiteral("已结束") },
+            { Cancelled, QStringLiteral("已取消") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace ServiceType {
     enum Type : int { Repair = 1, Housekeeping = 2, Delivery = 3, ElderCare = 4, Legal = 5, Other = 6 };
-    inline QString label(int v) {
-        switch(v) {
-            case Repair: return QStringLiteral("维修");
-            case Housekeeping: return QStringLiteral("家政");
-            case Delivery: return QStringLiteral("配送");
-            case ElderCare: return QStringLiteral("养老");
-            case Legal: return QStringLiteral("法律");
-            case Other: return QStringLiteral("其他");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Repair, QStringLiteral("维修") },
+            { Housekeeping, QStringLiteral("家政") },
+            { Delivery, QStringLiteral("配送") },
+            { ElderCare, QStringLiteral("养老") },
+            { Legal, QStringLiteral("法律") },
+            { Other, QStringLiteral("其他") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace ServiceOrderStatus {
     enum Type : int { Pending = 0, Accepted = 1, Appointed = 2, InService = 3,
            Completed = 4, Evaluated = 5, Cancelled = 6 };
-    inline QString label(int v) {
-        switch(v) {
-            case Pending: return QStringLiteral("待接单");
-            case Accepted: return QStringLiteral("已接单");
-            case Appointed: return QStringLiteral("已预约");
-            case InService: return QStringLiteral("服务中");
-            case Completed: return QStringLiteral("已完成");
-            case Evaluated: return QStringLiteral("已评价");
-            case Cancelled: return QStringLiteral("已取消");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Pending, QStringLiteral("待接单") },
+            { Accepted, QStringLiteral("已接单") },
+            { Appointed, QStringLiteral("已预约") },
+            { InService, QStringLiteral("服务中") },
+            { Completed, QStringLiteral("已完成") },
+            { Evaluated, QStringLiteral("已评价") },
+            { Cancelled, QStringLiteral("已取消") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace AnnouncementType {
     enum Type : int { Estate = 1, Community = 2, Property = 3, System = 4 };
-    inline QString label(int v) {
-        switch(v) {
-            case Estate: return QStringLiteral("小区公告");
-            case Community: return QStringLiteral("社区公告");
-            case Property: return QStringLiteral("物业公告");
-            case System: return QStringLiteral("系统公告");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Estate, QStringLiteral("小区公告") },
+            { Community, QStringLiteral("社区公告") },
+            { Property, QStringLiteral("物业公告") },
+            { System, QStringLiteral("系统公告") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace NotificationType {
     enum Type : int { SystemMsg = 1, WorkOrderReminder = 2, ApprovalReminder = 3,
            TimeoutWarning = 4, ActivityNotice = 5, AnnouncementPush = 6 };
-    inline QString label(int v) {
-        switch(v) {
-            case SystemMsg: return QStringLiteral("系统消息");
-            case WorkOrderReminder: return QStringLiteral("工单提醒");
-            case ApprovalReminder: return QStringLiteral("审批待办");
-            case TimeoutWarning: return QStringLiteral("超时预警");
-            case ActivityNotice: return QStringLiteral("活动通知");
-            case AnnouncementPush: return QStringLiteral("公告推送");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { SystemMsg, QStringLiteral("系统消息") },
+            { WorkOrderReminder, QStringLiteral("工单提醒") },
+            { ApprovalReminder, QStringLiteral("审批待办") },
+            { TimeoutWarning, QStringLiteral("超时预警") },
+            { ActivityNotice, QStringLiteral("活动通知") },
+            { AnnouncementPush, QStringLiteral("公告推送") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace TopicType {
     enum Type : int { PublicIncome = 1, PropertySupervision = 2, FacilityReno = 3, Other = 4 };
-    inline QString label(int v) {
-        switch(v) {
-            case PublicIncome: return QStringLiteral("公共收益");
-            case PropertySupervision: return QStringLiteral("物业监督");
-            case FacilityReno: return QStringLiteral("设施改造");
-            case Other: return QStringLiteral("其他");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { PublicIncome, QStringLiteral("公共收益") },
+            { PropertySupervision, QStringLiteral("物业监督") },
+            { FacilityReno, QStringLiteral("设施改造") },
+            { Other, QStringLiteral("其他") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace VoteChoice {
     enum Type : int { Approve = 1, Oppose = 2, Abstain = 3 };
-    inline QString label(int v) {
-        switch(v) {
-            case Approve: return QStringLiteral("赞成");
-            case Oppose: return QStringLiteral("反对");
-            case Abstain: return QStringLiteral("弃权");
-            default: return QStringLiteral("未知");
-        }
+    inline const QMap<Type, QString>& labels() {
+        static const QMap<Type, QString> map {
+            { Approve, QStringLiteral("赞成") },
+            { Oppose, QStringLiteral("反对") },
+            { Abstain, QStringLiteral("弃权") },
+        };
+        return map;
     }
+    inline QString label(int v) { return EnumHelper<Type>::label(v, labels()); }
 }
 
 namespace MenuType {

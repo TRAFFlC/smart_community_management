@@ -7,8 +7,18 @@
 #include <QCryptographicHash>
 #include <QRandomGenerator>
 #include <QPasswordDigestor>
+#include <QByteArray>
+#include <QAtomicInt>
 
 namespace Utils {
+
+namespace {
+    // 进程内自增序列号，保证同一毫秒内生成的编号不会重复
+    inline int nextSequenceNumber() {
+        static QAtomicInt counter(0);
+        return counter.fetchAndAddRelaxed(1) + 1;
+    }
+}
 
 // 密码哈希：PBKDF2-SHA512 + 16字节随机盐，10000轮迭代
 // 返回格式: salt:hash (均为十六进制字符串)
@@ -56,28 +66,31 @@ inline bool verifyPassword(const QString& password, const QString& hashed) {
     return newHash == storedHash;
 }
 
-// 生成工单编号: WO + yyyyMMddHHmmss + 4位随机数
+// 生成工单编号: WO + yyyyMMddHHmmsszzz + 6位随机数 + 4位自增序列号
 inline QString generateOrderNo() {
     QString prefix = "WO";
-    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMddHHmmss");
-    int rand = QRandomGenerator::global()->bounded(1000, 9999);
-    return prefix + timestamp + QString::number(rand);
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMddHHmmsszzz");
+    int rand = QRandomGenerator::global()->bounded(100000, 1000000);
+    int seq = nextSequenceNumber();
+    return prefix + timestamp + QString::number(rand) + QString("%1").arg(seq, 4, 10, QChar('0'));
 }
 
-// 生成事件编号: GE + yyyyMMddHHmmss + 4位随机数
+// 生成事件编号: GE + yyyyMMddHHmmsszzz + 6位随机数 + 4位自增序列号
 inline QString generateEventNo() {
     QString prefix = "GE";
-    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMddHHmmss");
-    int rand = QRandomGenerator::global()->bounded(1000, 9999);
-    return prefix + timestamp + QString::number(rand);
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMddHHmmsszzz");
+    int rand = QRandomGenerator::global()->bounded(100000, 1000000);
+    int seq = nextSequenceNumber();
+    return prefix + timestamp + QString::number(rand) + QString("%1").arg(seq, 4, 10, QChar('0'));
 }
 
-// 生成服务订单编号: SV + yyyyMMddHHmmss + 4位随机数
+// 生成服务订单编号: SV + yyyyMMddHHmmsszzz + 6位随机数 + 4位自增序列号
 inline QString generateServiceOrderNo() {
     QString prefix = "SV";
-    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMddHHmmss");
-    int rand = QRandomGenerator::global()->bounded(1000, 9999);
-    return prefix + timestamp + QString::number(rand);
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMddHHmmsszzz");
+    int rand = QRandomGenerator::global()->bounded(100000, 1000000);
+    int seq = nextSequenceNumber();
+    return prefix + timestamp + QString::number(rand) + QString("%1").arg(seq, 4, 10, QChar('0'));
 }
 
 // 手机号脱敏: 138****5678
@@ -132,6 +145,46 @@ inline QString formatFileSize(qint64 bytes) {
 // 生成会话ID
 inline QString generateSessionId() {
     return QUuid::createUuid().toString(QUuid::WithoutBraces);
+}
+
+// 简单可逆加密：使用固定种子派生密钥，对 UTF-8 字节做 XOR 后 Base64，并加 "enc:" 前缀
+inline QString simpleEncrypt(const QString& plaintext) {
+    if (plaintext.isEmpty())
+        return QString();
+
+    static const QByteArray key = QCryptographicHash::hash(
+        QByteArrayLiteral("SmartCommunity_EncSeed_v1"),
+        QCryptographicHash::Sha256);
+
+    QByteArray data = plaintext.toUtf8();
+    const int keyLen = key.size();
+    for (int i = 0; i < data.size(); ++i) {
+        data[i] = static_cast<char>(static_cast<quint8>(data[i]) ^
+                                    static_cast<quint8>(key[i % keyLen]));
+    }
+    return QStringLiteral("enc:") + QString::fromLatin1(data.toBase64());
+}
+
+// 解密 simpleEncrypt 生成的密文；非加密前缀的输入视为明文旧数据并原样返回；
+// 若密文格式不合法（如 Base64 解码失败），返回空字符串便于调用方识别。
+inline QString simpleDecrypt(const QString& ciphertext) {
+    if (!ciphertext.startsWith(QStringLiteral("enc:")))
+        return ciphertext;
+
+    QByteArray data = QByteArray::fromBase64(ciphertext.mid(4).toLatin1());
+    if (data.isEmpty())
+        return QString();
+
+    static const QByteArray key = QCryptographicHash::hash(
+        QByteArrayLiteral("SmartCommunity_EncSeed_v1"),
+        QCryptographicHash::Sha256);
+
+    const int keyLen = key.size();
+    for (int i = 0; i < data.size(); ++i) {
+        data[i] = static_cast<char>(static_cast<quint8>(data[i]) ^
+                                    static_cast<quint8>(key[i % keyLen]));
+    }
+    return QString::fromUtf8(data);
 }
 
 } // namespace Utils
