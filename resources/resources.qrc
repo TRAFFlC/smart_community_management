@@ -2,5 +2,47 @@
     <qresource prefix="/">
         <file>style.qss</file>
         <file>app.svg</file>
+        <file>icons/ic_dashboard.svg</file>
+        <file>icons/ic_todo.svg</file>
+        <file>icons/ic_bell.svg</file>
+        <file>icons/ic_building.svg</file>
+        <file>icons/ic_home.svg</file>
+        <file>icons/ic_people.svg</file>
+        <file>icons/ic_car.svg</file>
+        <file>icons/ic_tool.svg</file>
+        <file>icons/ic_grid.svg</file>
+        <file>icons/ic_heart.svg</file>
+        <file>icons/ic_file.svg</file>
+        <file>icons/ic_chat.svg</file>
+        <file>icons/ic_info.svg</file>
+        <file>icons/ic_alert.svg</file>
+        <file>icons/ic_clock.svg</file>
+        <file>icons/ic_star.svg</file>
+        <file>icons/ic_table.svg</file>
+        <file>icons/ic_chart.svg</file>
+        <file>icons/ic_check.svg</file>
+        <file>icons/ic_monitor.svg</file>
+        <file>icons/ic_settings.svg</file>
+        <file>icons/ic_layers.svg</file>
+        <file>icons/ic_briefcase.svg</file>
+        <file>icons/ic_gear.svg</file>
+        <file>icons/ic_lock.svg</file>
+        <file>icons/ic_upload.svg</file>
+        <file>icons/ic_list.svg</file>
+        <file>icons/ic_edit.svg</file>
+        <file>icons/ic_search.svg</file>
+        <file>icons/ic_announce.svg</file>
+        <file>icons/ic_visitor.svg</file>
+        <file>icons/ic_flag.svg</file>
+        <file>icons/ic_card.svg</file>
+        <file>icons/ic_money.svg</file>
+        <file>icons/ic_activity.svg</file>
+        <file>icons/ic_route.svg</file>
+        <file>icons/ic_inspect.svg</file>
+        <file>icons/ic_robot.svg</file>
+        <file>icons/ic_log.svg</file>
+        <file>icons/ic_box.svg</file>
+        <file>icons/ic_shop.svg</file>
+        <file>icons/ic_refresh.svg</file>
     </qresource>
 </RCC>

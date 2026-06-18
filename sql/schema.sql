@@ -725,6 +725,20 @@ CREATE TABLE IF NOT EXISTS sv_job_posting (
     del_flag         INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS sv_job_application (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id          INTEGER NOT NULL,
+    applicant_id    INTEGER NOT NULL,
+    applicant_name  VARCHAR(64),
+    applicant_phone VARCHAR(20),
+    resume_content  TEXT,
+    status          INTEGER DEFAULT 0,
+    apply_time      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    create_by       INTEGER,
+    create_time     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    del_flag        INTEGER DEFAULT 0
+);
+
 -- ========== 6. NT 消息通知域 ==========
 
 CREATE TABLE IF NOT EXISTS nt_announcement (

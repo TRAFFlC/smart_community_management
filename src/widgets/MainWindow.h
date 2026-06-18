@@ -7,7 +7,19 @@
 #include <QMap>
 #include <QList>
 #include <QPushButton>
+#include <QToolButton>
+#include <QHBoxLayout>
+#include <QVariantAnimation>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QFrame>
+#include <QProgressBar>
+#include <QVBoxLayout>
+#include <QTableWidget>
 #include "models/Models.h"
+#include "database/DatabaseManager.h"
+#include "pages/BasePage.h"
+#include "pages/PageFactory.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -27,16 +39,10 @@ private:
     QWidget* createSidebarItem(const QString& icon, const QString& text, const QString& key, bool isHeader = false);
     void switchPage(const QString& key);
     void updateUserInfo();
-    QWidget* getOrCreatePage(const QString& key);
+    BasePage* getOrCreatePage(const QString& key);
 
-    // Pages
-    QWidget* createDashboardPage();
-    QWidget* createArchivePage(const QString& sub);
-    QWidget* createPropertyPage(const QString& sub);
-    QWidget* createGovernancePage(const QString& sub);
-    QWidget* createServicePage(const QString& sub);
-    QWidget* createReportPage(const QString& sub);
-    QWidget* createSystemPage(const QString& sub);
+    // 通知发送（页面通过 sendNotificationRequested 信号触发）
+    void sendNotification(int userId, const QString& title, const QString& content, int type, const QString& bizType = QString(), int bizId = 0);
 
     // UI
     QWidget* m_sidebar = nullptr;
@@ -51,6 +57,38 @@ private:
     QWidget* m_activeSidebarItem = nullptr;
     QList<QPushButton*> m_groupHeaders;
     QList<QWidget*> m_groupContainers;
+
+    // 顶栏改造：通知角标、面包屑、刷新按钮
+    QToolButton* m_notifyBtn = nullptr;
+    QLabel* m_notificationBadge = nullptr;
+    QWidget* m_breadcrumbContainer = nullptr;
+    QHBoxLayout* m_breadcrumbLayout = nullptr;
+    QToolButton* m_refreshBtn = nullptr;
+    QVariantAnimation* m_refreshAnimation = nullptr;
+    QPixmap m_refreshIconPix;
+
+    // 全局搜索
+    QLineEdit* m_globalSearchEdit = nullptr;
+    QFrame* m_searchDropdown = nullptr;
+    QListWidget* m_searchResultList = nullptr;
+    QToolButton* m_userMenuBtn = nullptr;
+
+    // 加载状态指示器
+    QProgressBar* m_loadingBar = nullptr;
+
+private:
+    void performGlobalSearch(const QString& keyword);
+    void hideSearchDropdown();
+    void showSearchDropdown();
+    void onSearchResultClicked(int row);
+
+private slots:
+    void updateNotificationBadge();
+    void updateBreadcrumb(const QString& module, const QString& page);
+    void refreshCurrentPage();
+    void onBreadcrumbClicked(const QString& target);
+    void onRefreshBtnClicked();
+    void onNotifyBtnClicked();
 };
 
 #endif // MAINWINDOW_H

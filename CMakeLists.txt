@@ -13,6 +13,7 @@ find_package(Qt6 REQUIRED COMPONENTS
     Widgets
     Sql
     Charts
+    Network
 )
 
 file(GLOB_RECURSE SOURCES
@@ -39,8 +40,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Widgets
     Qt6::Sql
     Qt6::Charts
+    Qt6::Network
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/widgets
 )

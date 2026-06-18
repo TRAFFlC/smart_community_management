@@ -6,20 +6,54 @@
 #include <QUuid>
 #include <QCryptographicHash>
 #include <QRandomGenerator>
+#include <QPasswordDigestor>
 
 namespace Utils {
 
-// 简单密码哈希（演示用，生产环境应用 BCrypt）
+// 密码哈希：PBKDF2-SHA512 + 16字节随机盐，10000轮迭代
+// 返回格式: salt:hash (均为十六进制字符串)
+// 旧版使用裸 SHA256 + 固定盐，verifyPassword 保留向后兼容
 inline QString hashPassword(const QString& password) {
-    QByteArray hash = QCryptographicHash::hash(
-        (password + "smart_community_salt").toUtf8(),
-        QCryptographicHash::Sha256
+    // 生成 16 字节随机盐
+    QByteArray salt(16, '\0');
+    for (int i = 0; i < 16; ++i) {
+        salt[i] = static_cast<char>(QRandomGenerator::global()->bounded(256));
+    }
+    // PBKDF2-SHA512，10000 轮迭代，输出 64 字节
+    QByteArray hash = QPasswordDigestor::deriveKeyPbkdf2(
+        QCryptographicHash::Sha512,
+        password.toUtf8(),
+        salt,
+        10000,
+        64
     );
-    return hash.toHex();
+    return salt.toHex() + ":" + hash.toHex();
 }
 
+// 密码校验：兼容新旧两种格式
+// - 新格式 (含 ':'): salt:hash，使用 PBKDF2-SHA512 重新计算比对
+// - 旧格式 (不含 ':'): 裸 SHA256 + 固定盐，确保已有数据库用户可登录
 inline bool verifyPassword(const QString& password, const QString& hashed) {
-    return hashPassword(password) == hashed;
+    // 兼容旧格式（无冒号 = 旧 SHA256 + 固定盐）
+    if (!hashed.contains(':')) {
+        QByteArray oldHash = QCryptographicHash::hash(
+            (password + "smart_community_salt").toUtf8(),
+            QCryptographicHash::Sha256
+        );
+        return oldHash.toHex() == hashed;
+    }
+    // 新格式：salt:hash
+    int sep = hashed.indexOf(':');
+    QByteArray salt = QByteArray::fromHex(hashed.left(sep).toUtf8());
+    QByteArray storedHash = QByteArray::fromHex(hashed.mid(sep + 1).toUtf8());
+    QByteArray newHash = QPasswordDigestor::deriveKeyPbkdf2(
+        QCryptographicHash::Sha512,
+        password.toUtf8(),
+        salt,
+        10000,
+        64
+    );
+    return newHash == storedHash;
 }
 
 // 生成工单编号: WO + yyyyMMddHHmmss + 4位随机数

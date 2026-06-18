@@ -3,8 +3,18 @@
 
 #include <QString>
 
+// ============================================================================
+// 类型安全改进说明：
+// 所有命名空间内的裸 enum 已改为带类型名和底层类型的 enum Type : int { ... }。
+// - 枚举值仍然与 int 兼容（可隐式转换），保持向后兼容，无需修改引用点
+// - 有了明确的类型名 Type，便于文档化与理解
+// - 底层类型固定为 int，保证跨平台一致性
+// 注意：不同命名空间的同名枚举值（如 UserStatus::Normal 与 WorkOrderPriority::Normal）
+// 仍为 int 类型，使用时需注意区分命名空间。
+// ============================================================================
+
 namespace UserStatus {
-    enum { Normal = 0, Disabled = 1, Locked = 2 };
+    enum Type : int { Normal = 0, Disabled = 1, Locked = 2 };
     inline QString label(int v) {
         switch(v) {
             case Normal: return QStringLiteral("正常");
@@ -16,7 +26,7 @@ namespace UserStatus {
 }
 
 namespace UserType {
-    enum { Resident = 0, Staff = 1, ServiceProvider = 2, Admin = 3 };
+    enum Type : int { Resident = 0, Staff = 1, ServiceProvider = 2, Admin = 3 };
     inline QString label(int v) {
         switch(v) {
             case Resident: return QStringLiteral("居民");
@@ -29,7 +39,7 @@ namespace UserType {
 }
 
 namespace OrgType {
-    enum { Platform = 1, Street = 2, Community = 3, PropertyCompany = 4,
+    enum Type : int { Platform = 1, Street = 2, Community = 3, PropertyCompany = 4,
            OwnerCommittee = 5, ServiceOrg = 6, SocialOrg = 7 };
     inline QString label(int v) {
         switch(v) {
@@ -46,7 +56,7 @@ namespace OrgType {
 }
 
 namespace DataScope {
-    enum { Platform = 1, Street = 2, Community = 3, Estate = 4,
+    enum Type : int { Platform = 1, Street = 2, Community = 3, Estate = 4,
            Building = 5, Personal = 6, Collaborative = 7 };
     inline QString label(int v) {
         switch(v) {
@@ -63,7 +73,7 @@ namespace DataScope {
 }
 
 namespace HouseStatus {
-    enum { Vacant = 0, OwnerOccupied = 1, Rented = 2, Sold = 3 };
+    enum Type : int { Vacant = 0, OwnerOccupied = 1, Rented = 2, Sold = 3 };
     inline QString label(int v) {
         switch(v) {
             case Vacant: return QStringLiteral("空置");
@@ -76,7 +86,7 @@ namespace HouseStatus {
 }
 
 namespace HouseRelation {
-    enum { Owner = 1, Resident = 2, Tenant = 3, FamilyMember = 4 };
+    enum Type : int { Owner = 1, Resident = 2, Tenant = 3, FamilyMember = 4 };
     inline QString label(int v) {
         switch(v) {
             case Owner: return QStringLiteral("产权人");
@@ -89,7 +99,7 @@ namespace HouseRelation {
 }
 
 namespace VehicleType {
-    enum { Sedan = 1, SUV = 2, Electric = 3, Other = 4 };
+    enum Type : int { Sedan = 1, SUV = 2, Electric = 3, Other = 4 };
     inline QString label(int v) {
         switch(v) {
             case Sedan: return QStringLiteral("轿车");
@@ -102,7 +112,7 @@ namespace VehicleType {
 }
 
 namespace FacilityType {
-    enum { Elevator = 1, FireFight = 2, AccessControl = 3, Camera = 4,
+    enum Type : int { Elevator = 1, FireFight = 2, AccessControl = 3, Camera = 4,
            Fitness = 5, Lighting = 6, Other = 7 };
     inline QString label(int v) {
         switch(v) {
@@ -119,7 +129,7 @@ namespace FacilityType {
 }
 
 namespace SpecialGroupType {
-    enum { ElderlyAlone = 1, Disabled = 2, LowIncome = 3, PriorityHelp = 4, Other = 5 };
+    enum Type : int { ElderlyAlone = 1, Disabled = 2, LowIncome = 3, PriorityHelp = 4, Other = 5 };
     inline QString label(int v) {
         switch(v) {
             case ElderlyAlone: return QStringLiteral("独居老人");
@@ -133,7 +143,7 @@ namespace SpecialGroupType {
 }
 
 namespace WorkOrderType {
-    enum { WaterElectric = 1, PublicFacility = 2, Environment = 3,
+    enum Type : int { WaterElectric = 1, PublicFacility = 2, Environment = 3,
            SecurityOrder = 4, Other = 5 };
     inline QString label(int v) {
         switch(v) {
@@ -148,7 +158,7 @@ namespace WorkOrderType {
 }
 
 namespace WorkOrderPriority {
-    enum { Normal = 1, Urgent = 2, Critical = 3 };
+    enum Type : int { Normal = 1, Urgent = 2, Critical = 3 };
     inline QString label(int v) {
         switch(v) {
             case Normal: return QStringLiteral("普通");
@@ -160,7 +170,7 @@ namespace WorkOrderPriority {
 }
 
 namespace WorkOrderStatus {
-    enum { Pending = 0, Accepted = 1, Assigned = 2, Processing = 3,
+    enum Type : int { Pending = 0, Accepted = 1, Assigned = 2, Processing = 3,
            Completed = 4, Closed = 5, Evaluated = 6, Rejected = 7 };
     inline QString label(int v) {
         switch(v) {
@@ -177,21 +187,21 @@ namespace WorkOrderStatus {
     }
     inline QString color(int v) {
         switch(v) {
-            case Pending: return "#faad14";
-            case Accepted: return "#1677ff";
-            case Assigned: return "#1677ff";
-            case Processing: return "#1677ff";
-            case Completed: return "#52c41a";
-            case Closed: return "#8c8c8c";
-            case Evaluated: return "#52c41a";
-            case Rejected: return "#ff4d4f";
-            default: return "#8c8c8c";
+            case Pending: return "#d97706";
+            case Accepted: return "#2563eb";
+            case Assigned: return "#2563eb";
+            case Processing: return "#2563eb";
+            case Completed: return "#15803d";
+            case Closed: return "#64748b";
+            case Evaluated: return "#15803d";
+            case Rejected: return "#b91c1c";
+            default: return "#64748b";
         }
     }
 }
 
 namespace EventCategory {
-    enum { Livelihood = 1, Environment = 2, FacilitySafety = 3,
+    enum Type : int { Livelihood = 1, Environment = 2, FacilitySafety = 3,
            NeighborDispute = 4, SpecialCare = 5, CityOrder = 6, Emergency = 7 };
     inline QString label(int v) {
         switch(v) {
@@ -208,7 +218,7 @@ namespace EventCategory {
 }
 
 namespace EventPriority {
-    enum { Normal = 1, Important = 2, Urgent = 3, Critical = 4 };
+    enum Type : int { Normal = 1, Important = 2, Urgent = 3, Critical = 4 };
     inline QString label(int v) {
         switch(v) {
             case Normal: return QStringLiteral("一般");
@@ -221,7 +231,7 @@ namespace EventPriority {
 }
 
 namespace EventStatus {
-    enum { PendingReview = 0, Reviewed = 1, Assigned = 2, Processing = 3,
+    enum Type : int { PendingReview = 0, Reviewed = 1, Assigned = 2, Processing = 3,
            Completed = 4, Rejected = 5, Archived = 6, Escalated = 7 };
     inline QString label(int v) {
         switch(v) {
@@ -238,21 +248,21 @@ namespace EventStatus {
     }
     inline QString color(int v) {
         switch(v) {
-            case PendingReview: return "#faad14";
-            case Reviewed: return "#1677ff";
-            case Assigned: return "#1677ff";
-            case Processing: return "#1677ff";
-            case Completed: return "#52c41a";
-            case Rejected: return "#ff4d4f";
-            case Archived: return "#8c8c8c";
-            case Escalated: return "#ff4d4f";
-            default: return "#8c8c8c";
+            case PendingReview: return "#d97706";
+            case Reviewed: return "#2563eb";
+            case Assigned: return "#2563eb";
+            case Processing: return "#2563eb";
+            case Completed: return "#15803d";
+            case Rejected: return "#b91c1c";
+            case Archived: return "#64748b";
+            case Escalated: return "#b91c1c";
+            default: return "#64748b";
         }
     }
 }
 
 namespace EventSource {
-    enum { GridWorker = 0, Resident = 1, Property = 2, Inspection = 3 };
+    enum Type : int { GridWorker = 0, Resident = 1, Property = 2, Inspection = 3 };
     inline QString label(int v) {
         switch(v) {
             case GridWorker: return QStringLiteral("网格员上报");
@@ -265,7 +275,7 @@ namespace EventSource {
 }
 
 namespace VolunteerActivityType {
-    enum { Environmental = 1, ElderlyCare = 2, Education = 3, Security = 4, Other = 5 };
+    enum Type : int { Environmental = 1, ElderlyCare = 2, Education = 3, Security = 4, Other = 5 };
     inline QString label(int v) {
         switch(v) {
             case Environmental: return QStringLiteral("环保");
@@ -279,7 +289,7 @@ namespace VolunteerActivityType {
 }
 
 namespace VolunteerActivityStatus {
-    enum { Draft = 0, Recruiting = 1, InProgress = 2, Ended = 3, Cancelled = 4 };
+    enum Type : int { Draft = 0, Recruiting = 1, InProgress = 2, Ended = 3, Cancelled = 4 };
     inline QString label(int v) {
         switch(v) {
             case Draft: return QStringLiteral("草稿");
@@ -293,7 +303,7 @@ namespace VolunteerActivityStatus {
 }
 
 namespace ServiceType {
-    enum { Repair = 1, Housekeeping = 2, Delivery = 3, ElderCare = 4, Legal = 5, Other = 6 };
+    enum Type : int { Repair = 1, Housekeeping = 2, Delivery = 3, ElderCare = 4, Legal = 5, Other = 6 };
     inline QString label(int v) {
         switch(v) {
             case Repair: return QStringLiteral("维修");
@@ -308,7 +318,7 @@ namespace ServiceType {
 }
 
 namespace ServiceOrderStatus {
-    enum { Pending = 0, Accepted = 1, Appointed = 2, InService = 3,
+    enum Type : int { Pending = 0, Accepted = 1, Appointed = 2, InService = 3,
            Completed = 4, Evaluated = 5, Cancelled = 6 };
     inline QString label(int v) {
         switch(v) {
@@ -325,7 +335,7 @@ namespace ServiceOrderStatus {
 }
 
 namespace AnnouncementType {
-    enum { Estate = 1, Community = 2, Property = 3, System = 4 };
+    enum Type : int { Estate = 1, Community = 2, Property = 3, System = 4 };
     inline QString label(int v) {
         switch(v) {
             case Estate: return QStringLiteral("小区公告");
@@ -338,7 +348,7 @@ namespace AnnouncementType {
 }
 
 namespace NotificationType {
-    enum { SystemMsg = 1, WorkOrderReminder = 2, ApprovalReminder = 3,
+    enum Type : int { SystemMsg = 1, WorkOrderReminder = 2, ApprovalReminder = 3,
            TimeoutWarning = 4, ActivityNotice = 5, AnnouncementPush = 6 };
     inline QString label(int v) {
         switch(v) {
@@ -354,7 +364,7 @@ namespace NotificationType {
 }
 
 namespace TopicType {
-    enum { PublicIncome = 1, PropertySupervision = 2, FacilityReno = 3, Other = 4 };
+    enum Type : int { PublicIncome = 1, PropertySupervision = 2, FacilityReno = 3, Other = 4 };
     inline QString label(int v) {
         switch(v) {
             case PublicIncome: return QStringLiteral("公共收益");
@@ -367,7 +377,7 @@ namespace TopicType {
 }
 
 namespace VoteChoice {
-    enum { Approve = 1, Oppose = 2, Abstain = 3 };
+    enum Type : int { Approve = 1, Oppose = 2, Abstain = 3 };
     inline QString label(int v) {
         switch(v) {
             case Approve: return QStringLiteral("赞成");
@@ -379,7 +389,7 @@ namespace VoteChoice {
 }
 
 namespace MenuType {
-    enum { Directory = 1, Menu = 2, Button = 3, Api = 4 };
+    enum Type : int { Directory = 1, Menu = 2, Button = 3, Api = 4 };
 }
 
 namespace RoleDomain {

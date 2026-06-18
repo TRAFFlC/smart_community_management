@@ -146,6 +146,11 @@ public:
         return minScope;
     }
 
+    // 重新加载当前用户信息（用于个人中心保存后刷新）
+    void loadCurrentUserPublic(qint64 userId) {
+        loadCurrentUser(userId);
+    }
+
 private:
     AuthService() = default;
     SysUser m_currentUser;

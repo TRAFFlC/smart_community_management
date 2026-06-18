@@ -1,0 +1,9 @@
+    void buildPropertyWorkorder(QWidget *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint);
+    void buildPropertyComplaint(QWidget *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint);
+    void buildPropertyInspection(QWidget *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint);
+    void buildPropertyAnnouncement(QWidget *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint);
+    void buildPropertyVisitor(QWidget *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint);
+    void buildPropertyTopic(QWidget *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint);
+    void buildPropertyParking(QWidget *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint);
+    void buildPropertyBilling(QWidget *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint);
+    void buildPropertyIncome(QWidget *page, QVBoxLayout *layout, QTableWidget *table, DatabaseManager &db, QLabel *emptyHint);
