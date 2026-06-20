@@ -179,15 +179,19 @@ private:
         // 加载角色
         m_currentUser.roleIds.clear();
         m_currentUser.roleNames.clear();
+        m_currentUser.roleDomain.clear();
         QSqlQuery rq = db.query(
-            "SELECT r.id, r.role_name, r.role_key, r.data_scope FROM sys_role r "
+            "SELECT r.id, r.role_name, r.role_key, r.role_domain, r.data_scope FROM sys_role r "
             "INNER JOIN sys_user_role ur ON r.id = ur.role_id "
-            "WHERE ur.user_id = :uid AND r.status = 0",
+            "WHERE ur.user_id = :uid AND r.status = 0 ORDER BY r.sort_order",
             {{":uid", userId}}
         );
         while (rq.next()) {
             m_currentUser.roleIds.append(rq.value("id").toInt());
             m_currentUser.roleNames.append(rq.value("role_name").toString());
+            if (m_currentUser.roleDomain.isEmpty()) {
+                m_currentUser.roleDomain = rq.value("role_domain").toString();
+            }
         }
 
         // 加载权限
@@ -212,6 +216,9 @@ private:
         while (oq.next()) {
             m_currentUser.orgIds.append(oq.value(0).toInt());
         }
+
+        // 安全：用户信息加载完毕后清空密码哈希，避免敏感数据常驻内存
+        m_currentUser.password.clear();
     }
 
     QList<SysMenu> buildMenuTree(QList<SysMenu>& allMenus, qint64 parentId) {

@@ -18,6 +18,7 @@
 #include <initializer_list>
 
 class QTableWidget;
+class QToolButton;
 
 namespace UiKit {
 
@@ -65,6 +66,26 @@ void syncEmptyHint(QTableWidget* table, QLabel* hint);
 
 // 淡入
 void fadeInWidget(QWidget* widget);
+
+// ===== 动效基础设施（克制风格：150-300ms，位移≤8px）=====
+
+// 真正的 opacity 淡入（duration 默认 200ms，OutCubic）
+void fadeInWidget(QWidget* widget, int duration);
+
+// 滑入 + 淡入：从 offset 偏移位置滑到原位
+// offset = QPoint(6, 0) 表示从右侧 6px 滑入
+void slideInWidget(QWidget* widget, const QPoint& offset, int duration = 200);
+
+// 数字滚动：从 0 滚动到 target（用于大数字指标）
+void countUpLabel(QLabel* label, int target, int duration = 600);
+
+// 脉冲：轻微缩放 + 透明度（用于通知角标）
+void pulseWidget(QWidget* widget, int duration = 300);
+
+// 图标颜色过渡动画：在 fromColor 和 toColor 之间插值，每帧重新着色图标
+// 用于 Icon Rail 按钮 hover 时的颜色平滑过渡
+void animateIconColor(QToolButton* btn, const QString& iconKey,
+                      const QColor& from, const QColor& to, int duration = 150);
 
 // Toast 提示
 void showToast(const QString& msg, QWidget* parent = nullptr);

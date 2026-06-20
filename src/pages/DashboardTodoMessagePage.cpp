@@ -10,6 +10,7 @@
 #include "services/EventService.h"
 
 // ========== Dashboard Page ==========
+// 现代档案室设计：大数字指标 + 紧凑列表 + 时间线 + 克制色板
 BasePage *PageFactory::createDashboardPage()
 {
   auto *page = new BasePage();
@@ -20,143 +21,227 @@ BasePage *PageFactory::createDashboardPage()
   auto *scrollArea = new QScrollArea(page);
   scrollArea->setWidgetResizable(true);
   scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  scrollArea->setStyleSheet("QScrollArea { border: none; background: #f8fafc; }");
+  scrollArea->setStyleSheet(
+      "QScrollArea { border: none; background: #FAF9F6; }"
+      "QScrollBar:vertical { width: 6px; background: transparent; }"
+      "QScrollBar::handle:vertical { background: #D4D0C8; border-radius: 0; min-height: 30px; }"
+      "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }");
 
   auto *content = new QWidget();
+  content->setStyleSheet("background: #FAF9F6;");
   auto *layout = new QVBoxLayout(content);
-  layout->setContentsMargins(24, 24, 24, 24);
+  layout->setContentsMargins(32, 24, 32, 24);
   layout->setSpacing(24);
 
   const auto &user = AuthService::instance().currentUser();
   QString greeting = user.nickname.isEmpty() ? user.username : user.nickname;
 
-  // Data-scope filter for dashboard: residents (data_scope >= 6) only see their own reported data.
+  // Data-scope filter
   const int dataScope = AuthService::instance().currentUserDataScope();
   const bool onlySelf = dataScope >= 6;
   const QString woScopeFilter = onlySelf ? QStringLiteral(" AND reporter_id = :scope_uid") : QString();
   const QString evScopeFilter = onlySelf ? QStringLiteral(" AND reporter_id = :scope_uid") : QString();
 
-  // Welcome banner
-  auto *welcomeLabel = new QLabel(QStringLiteral("欢迎回来，%1！").arg(greeting), page);
-  welcomeLabel->setStyleSheet("font-size: 24px; font-weight: 700; color: #0f172a; background: transparent; border: none;");
-  layout->addWidget(welcomeLabel);
+  // ========== Hero 区：问候 + 日期 ==========
+  auto *heroFrame = new QFrame(content);
+  heroFrame->setStyleSheet("QFrame { background: transparent; border: none; } QLabel { background: transparent; border: none; }");
+  auto *heroLayout = new QVBoxLayout(heroFrame);
+  heroLayout->setContentsMargins(0, 0, 0, 0);
+  heroLayout->setSpacing(4);
 
-  // Today key metrics
-  auto *metricsArea = new QWidget(page);
-  auto *metricsLayout = new QHBoxLayout(metricsArea);
-  metricsLayout->setContentsMargins(0, 0, 0, 0);
-  metricsLayout->setSpacing(48);
+  auto *greetingLabel = new QLabel(QStringLiteral("欢迎回来，%1").arg(greeting), heroFrame);
+  greetingLabel->setStyleSheet(
+      "font-size: 28px; font-weight: 600; color: #141413;"
+      " font-family: 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;"
+      " letter-spacing: 0.5px;");
+  heroLayout->addWidget(greetingLabel);
 
-  auto createMetric = [](const QString &label, int value, QWidget *parent) -> QWidget *
-  {
-    auto *container = new QWidget(parent);
-    auto *vl = new QVBoxLayout(container);
-    vl->setContentsMargins(0, 0, 0, 0);
-    vl->setSpacing(4);
-    vl->setAlignment(Qt::AlignCenter);
+  auto *dateLabel = new QLabel(QDateTime::currentDateTime().toString(QStringLiteral("yyyy 年 MM 月 dd 日  dddd")), heroFrame);
+  dateLabel->setStyleSheet("font-size: 12px; color: #6B6B6B; letter-spacing: 1px; text-transform: uppercase;");
+  heroLayout->addWidget(dateLabel);
+  layout->addWidget(heroFrame);
 
-    auto *numLabel = new QLabel(QString::number(value), container);
-    numLabel->setStyleSheet("font-size: 32px; font-weight: 700; color: #0f172a; background: transparent; border: none;");
-    numLabel->setAlignment(Qt::AlignCenter);
-
-    auto *textLabel = new QLabel(label, container);
-    textLabel->setStyleSheet("font-size: 13px; font-weight: 400; color: #64748b; background: transparent; border: none;");
-    textLabel->setAlignment(Qt::AlignCenter);
-
-    vl->addWidget(numLabel);
-    vl->addWidget(textLabel);
-    return container;
-  };
-
+  // ========== 大数字指标区（3 列） ==========
+  // 数据查询
   QSqlQuery woPendQ;
   woPendQ.prepare(QStringLiteral("SELECT COUNT(*) FROM wo_work_order WHERE status IN (0,1,2,3) AND del_flag = 0%1").arg(woScopeFilter));
-  if (onlySelf)
-    woPendQ.bindValue(":scope_uid", user.id);
+  if (onlySelf) woPendQ.bindValue(":scope_uid", user.id);
   int woPendCount = (woPendQ.exec() && woPendQ.next()) ? woPendQ.value(0).toInt() : 0;
-  metricsLayout->addStretch();
-  metricsLayout->addWidget(createMetric(QStringLiteral("待处理工单"), woPendCount, page));
 
   int evPendCount = EventService::instance().countPendingEvents(onlySelf ? user.id : -1);
-  metricsLayout->addWidget(createMetric(QStringLiteral("待审核事件"), evPendCount, page));
 
   QSqlQuery unreadQ;
   unreadQ.prepare("SELECT COUNT(*) FROM nt_notification WHERE user_id = :uid AND is_read = 0");
   unreadQ.bindValue(":uid", user.id);
   int unreadCount = (unreadQ.exec() && unreadQ.next()) ? unreadQ.value(0).toInt() : 0;
-  metricsLayout->addWidget(createMetric(QStringLiteral("未读通知"), unreadCount, page));
-  metricsLayout->addStretch();
 
+  auto *metricsRow = new QHBoxLayout();
+  metricsRow->setSpacing(1);  // 1px 细线分隔
+  metricsRow->setContentsMargins(0, 0, 0, 0);
+
+  auto createBigMetric = [](const QString &label, int value, const QString &hint, QWidget *parent) -> QFrame *
+  {
+    auto *card = new QFrame(parent);
+    card->setFixedHeight(120);
+    card->setStyleSheet(
+        "QFrame { background: #FAF9F6; border: none; }"
+        "QLabel { background: transparent; border: none; }");
+    auto *cl = new QVBoxLayout(card);
+    cl->setContentsMargins(24, 20, 24, 20);
+    cl->setSpacing(4);
+
+    auto *labelEl = new QLabel(label, card);
+    labelEl->setStyleSheet("font-size: 11px; color: #6B6B6B; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 500;");
+
+    // 初始显示 0，后续 countUp 动画滚动到 value
+    auto *numLabel = new QLabel(QStringLiteral("0"), card);
+    numLabel->setStyleSheet(
+        "font-size: 48px; font-weight: 600; color: #141413;"
+        " font-family: 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;"
+        " letter-spacing: -1px;");
+
+    auto *hintLabel = new QLabel(hint, card);
+    hintLabel->setStyleSheet("font-size: 11px; color: #9A9A9A;");
+
+    cl->addWidget(labelEl);
+    cl->addWidget(numLabel);
+    cl->addWidget(hintLabel);
+    cl->addStretch();
+
+    // 延迟启动 countUp 动画，确保 widget 已显示
+    QTimer::singleShot(100, numLabel, [numLabel, value]() {
+      UiKit::countUpLabel(numLabel, value, 700);
+    });
+
+    return card;
+  };
+
+  metricsRow->addWidget(createBigMetric(QStringLiteral("待处理工单"), woPendCount, QStringLiteral("需要尽快响应"), content), 1);
+
+  // 1px 垂直分隔线
+  auto *sep1 = new QFrame(content);
+  sep1->setFixedWidth(1);
+  sep1->setStyleSheet("background: #D4D0C8; border: none;");
+  metricsRow->addWidget(sep1);
+
+  metricsRow->addWidget(createBigMetric(QStringLiteral("待审核事件"), evPendCount, QStringLiteral("网格员上报"), content), 1);
+
+  auto *sep2 = new QFrame(content);
+  sep2->setFixedWidth(1);
+  sep2->setStyleSheet("background: #D4D0C8; border: none;");
+  metricsRow->addWidget(sep2);
+
+  metricsRow->addWidget(createBigMetric(QStringLiteral("未读通知"), unreadCount, QStringLiteral("消息中心"), content), 1);
+
+  // 顶部底部细线
   auto *metricsWrapper = new QVBoxLayout();
   metricsWrapper->setContentsMargins(0, 0, 0, 0);
-  metricsWrapper->setSpacing(12);
-  metricsWrapper->addWidget(metricsArea);
-
-  auto *metricsDivider = new QWidget(page);
-  metricsDivider->setFixedHeight(1);
-  metricsDivider->setStyleSheet("background: #e2e8f0; border: none;");
-  metricsWrapper->addWidget(metricsDivider);
-
+  metricsWrapper->setSpacing(0);
+  auto *topLine = new QFrame(content);
+  topLine->setFixedHeight(1);
+  topLine->setStyleSheet("background: #141413; border: none;");
+  metricsWrapper->addWidget(topLine);
+  metricsWrapper->addLayout(metricsRow);
+  auto *bottomLine = new QFrame(content);
+  bottomLine->setFixedHeight(1);
+  bottomLine->setStyleSheet("background: #D4D0C8; border: none;");
+  metricsWrapper->addWidget(bottomLine);
   layout->addLayout(metricsWrapper);
 
-  // Quick actions: 3-column icon grid
-  auto *quickArea = new QWidget(page);
+  // ========== 快捷操作（图标网格） ==========
+  auto *quickArea = new QWidget(content);
   auto *quickLayout = new QVBoxLayout(quickArea);
   quickLayout->setContentsMargins(0, 0, 0, 0);
-  quickLayout->setSpacing(16);
+  quickLayout->setSpacing(12);
 
-  auto *quickTitle = new QLabel(QStringLiteral("快捷操作"), page);
-  quickTitle->setStyleSheet("font-size: 16px; font-weight: 600; color: #0f172a; background: transparent; border: none;");
-  quickLayout->addWidget(quickTitle);
+  auto *quickHeader = new QHBoxLayout();
+  auto *quickTitle = new QLabel(QStringLiteral("快捷操作"), quickArea);
+  quickTitle->setStyleSheet(
+      "font-size: 11px; color: #6B6B6B; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;");
+  quickHeader->addWidget(quickTitle);
+  auto *quickSep = new QFrame(quickArea);
+  quickSep->setFixedHeight(1);
+  quickSep->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  quickSep->setStyleSheet("background: #D4D0C8; border: none;");
+  quickHeader->addWidget(quickSep, 1);
+  quickLayout->addLayout(quickHeader);
 
   auto *quickGrid = new QGridLayout();
-  quickGrid->setSpacing(0);
-  quickGrid->setHorizontalSpacing(24);
-  quickGrid->setVerticalSpacing(24);
-  quickGrid->setColumnStretch(0, 1);
-  quickGrid->setColumnStretch(1, 1);
-  quickGrid->setColumnStretch(2, 1);
+  quickGrid->setSpacing(1);
+  quickGrid->setHorizontalSpacing(1);
+  quickGrid->setVerticalSpacing(1);
+  for (int i = 0; i < 3; ++i) quickGrid->setColumnStretch(i, 1);
 
-  struct QuickAction
-  {
-    QString label;
-    QString iconKey;
-    QString target;
-  };
-  QuickAction actions[] = {
-      {QStringLiteral("报事报修"), QStringLiteral("ic_tool"), "301"},
-      {QStringLiteral("投诉建议"), QStringLiteral("ic_chat"), "302"},
-      {QStringLiteral("公告通知"), QStringLiteral("ic_announce"), "304"},
-      {QStringLiteral("志愿服务"), QStringLiteral("ic_people"), "501"},
-      {QStringLiteral("网格事件"), QStringLiteral("ic_route"), "401"},
-      {QStringLiteral("物业缴费"), QStringLiteral("ic_money"), "308"},
-  };
+  struct QuickAction { QString label; QString iconKey; QString target; };
+  const QString roleDomain = AuthService::instance().currentUser().roleDomain;
+  QList<QuickAction> actions;
+  if (roleDomain == QStringLiteral("resident")) {
+      actions = {
+          {QStringLiteral("报事报修"), QStringLiteral("ic_tool"), "301"},
+          {QStringLiteral("物业缴费"), QStringLiteral("ic_money"), "308"},
+          {QStringLiteral("投诉建议"), QStringLiteral("ic_chat"), "302"},
+          {QStringLiteral("公告通知"), QStringLiteral("ic_announce"), "304"},
+          {QStringLiteral("志愿服务"), QStringLiteral("ic_people"), "501"},
+          {QStringLiteral("便民服务"), QStringLiteral("ic_shop"), "504"},
+      };
+  } else if (roleDomain == QStringLiteral("property")) {
+      actions = {
+          {QStringLiteral("报事报修"), QStringLiteral("ic_tool"), "301"},
+          {QStringLiteral("投诉建议"), QStringLiteral("ic_chat"), "302"},
+          {QStringLiteral("公告通知"), QStringLiteral("ic_announce"), "304"},
+          {QStringLiteral("停车管理"), QStringLiteral("ic_car"), "309"},
+          {QStringLiteral("物业缴费"), QStringLiteral("ic_money"), "308"},
+          {QStringLiteral("巡检管理"), QStringLiteral("ic_inspect"), "310"},
+      };
+  } else if (roleDomain == QStringLiteral("governance")) {
+      actions = {
+          {QStringLiteral("网格事件"), QStringLiteral("ic_route"), "401"},
+          {QStringLiteral("民意收集"), QStringLiteral("ic_chat"), "411"},
+          {QStringLiteral("重点人群关怀"), QStringLiteral("ic_heart"), "410"},
+          {QStringLiteral("督办管理"), QStringLiteral("ic_flag"), "407"},
+          {QStringLiteral("绩效考核"), QStringLiteral("ic_chart"), "1001"},
+          {QStringLiteral("社区巡查"), QStringLiteral("ic_inspect"), "413"},
+      };
+  } else {
+      actions = {
+          {QStringLiteral("用户管理"), QStringLiteral("ic_people"), "903"},
+          {QStringLiteral("角色管理"), QStringLiteral("ic_lock"), "904"},
+          {QStringLiteral("菜单管理"), QStringLiteral("ic_list"), "905"},
+          {QStringLiteral("字典管理"), QStringLiteral("ic_table"), "906"},
+          {QStringLiteral("操作日志"), QStringLiteral("ic_log"), "909"},
+          {QStringLiteral("公告通知"), QStringLiteral("ic_announce"), "304"},
+      };
+  }
 
-  for (int i = 0; i < 6; ++i)
+  const int actionCount = qMin(actions.size(), 6);
+  for (int i = 0; i < actionCount; ++i)
   {
     auto *item = new QFrame(quickArea);
     item->setFrameStyle(QFrame::NoFrame);
     item->setCursor(Qt::PointingHandCursor);
+    item->setFixedHeight(96);
     item->setStyleSheet(
-        "QFrame { background: transparent; border: none; }"
+        "QFrame { background: #FAF9F6; border: none; }"
+        "QFrame:hover { background: #F5F2EB; }"
         "QLabel { background: transparent; border: none; }");
     item->setProperty("targetPage", actions[i].target);
 
     auto *itemLayout = new QVBoxLayout(item);
-    itemLayout->setContentsMargins(0, 0, 0, 0);
+    itemLayout->setContentsMargins(20, 16, 20, 16);
     itemLayout->setSpacing(8);
     itemLayout->setAlignment(Qt::AlignCenter);
 
     auto *iconLabel = new QLabel(item);
-    iconLabel->setFixedSize(32, 32);
+    iconLabel->setFixedSize(28, 28);
     iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setPixmap(UiKit::tintSvgIcon(actions[i].iconKey, "#64748b", QSize(32, 32)));
+    iconLabel->setPixmap(UiKit::tintSvgIcon(actions[i].iconKey, "#6B6B6B", QSize(28, 28)));
 
     auto *textLabel = new QLabel(actions[i].label, item);
-    textLabel->setStyleSheet("font-size: 13px; color: #334155; background: transparent; border: none;");
+    textLabel->setStyleSheet("font-size: 12px; color: #141413; font-weight: 500; letter-spacing: 0.3px;");
     textLabel->setAlignment(Qt::AlignCenter);
 
-    itemLayout->addWidget(iconLabel);
-    itemLayout->addWidget(textLabel);
+    itemLayout->addWidget(iconLabel, 0, Qt::AlignCenter);
+    itemLayout->addWidget(textLabel, 0, Qt::AlignCenter);
 
     item->installEventFilter(new QuickHoverFilter(iconLabel, actions[i].iconKey, item));
     item->installEventFilter(page);
@@ -165,276 +250,180 @@ BasePage *PageFactory::createDashboardPage()
   }
 
   quickLayout->addLayout(quickGrid);
-  layout->addWidget(quickArea);
 
-  // Two-column layout: todo (left) + dynamics & chart (right)
+  // 网格边框（用 1px frame 包裹）
+  auto *quickWrapper = new QFrame(content);
+  quickWrapper->setStyleSheet("QFrame { background: #D4D0C8; border: 1px solid #D4D0C8; }");
+  auto *qwLayout = new QVBoxLayout(quickWrapper);
+  qwLayout->setContentsMargins(1, 1, 1, 1);
+  qwLayout->setSpacing(0);
+  qwLayout->addWidget(quickArea);
+  layout->addWidget(quickWrapper);
+
+  // ========== 双栏：待办 + 社区动态 ==========
   auto *twoColLayout = new QHBoxLayout();
   twoColLayout->setSpacing(24);
   twoColLayout->setContentsMargins(0, 0, 0, 0);
 
-  // === Left column: Todo list ===
-  auto *leftCol = new QVBoxLayout();
-  leftCol->setSpacing(16);
-
-  auto *todoCard = new QFrame(page);
+  // === 左栏：待办列表 ===
+  auto *todoCard = new QFrame(content);
   todoCard->setStyleSheet(
-      "QFrame { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; }"
+      "QFrame { background: #FAF9F6; border: 1px solid #141413; border-radius: 0; }"
       "QLabel { background: transparent; border: none; }");
   auto *todoLayout = new QVBoxLayout(todoCard);
-  todoLayout->setContentsMargins(20, 16, 20, 16);
+  todoLayout->setContentsMargins(0, 0, 0, 0);
   todoLayout->setSpacing(0);
 
-  auto *todoTitle = new QLabel(QStringLiteral("待办事项"), todoCard);
-  todoTitle->setStyleSheet("font-size: 16px; font-weight: 600; color: #0f172a; background: transparent; border: none;");
-  todoLayout->addWidget(todoTitle);
-  todoLayout->addSpacing(8);
+  // 卡片头部（黑底白字）
+  auto *todoHeader = new QFrame(todoCard);
+  todoHeader->setFixedHeight(48);
+  todoHeader->setStyleSheet("QFrame { background: #141413; border: none; } QLabel { background: transparent; color: #FAF9F6; border: none; }");
+  auto *todoHeaderLayout = new QHBoxLayout(todoHeader);
+  todoHeaderLayout->setContentsMargins(20, 0, 20, 0);
+  auto *todoTitle = new QLabel(QStringLiteral("待办事项"), todoHeader);
+  todoTitle->setStyleSheet("font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;");
+  todoHeaderLayout->addWidget(todoTitle);
+  todoHeaderLayout->addStretch();
+  auto *todoCountLabel = new QLabel(QString::number(woPendCount + evPendCount) + QStringLiteral(" 项"), todoHeader);
+  todoCountLabel->setStyleSheet("font-size: 11px; color: #B45309; font-weight: 600; letter-spacing: 0.5px;");
+  todoHeaderLayout->addWidget(todoCountLabel);
+  todoLayout->addWidget(todoHeader);
 
-  auto createTodoItem = [&](const QString &label, int count, const QString &color, const QString &target, bool last) -> QFrame *
+  // 待办项
+  auto createTodoItem = [&](const QString &label, int count, const QString &target, bool last) -> QFrame *
   {
     auto *item = new QFrame(todoCard);
     item->setFrameStyle(QFrame::NoFrame);
     item->setCursor(Qt::PointingHandCursor);
-    item->setFixedHeight(44);
+    item->setFixedHeight(56);
     item->setProperty("targetPage", target);
 
-    QString borderStyle = last ? QString() : QStringLiteral("border-bottom: 1px solid #e2e8f0;");
+    QString borderStyle = last ? QString() : QStringLiteral("border-bottom: 1px solid #E8E5DE;");
     item->setStyleSheet(QString(
-                            "QFrame { background: transparent; border: none; %1 }"
-                            "QFrame:hover { background: #f8fafc; }"
-                            "QLabel { background: transparent; border: none; }")
-                            .arg(borderStyle));
+        "QFrame { background: #FAF9F6; border: none; %1 }"
+        "QFrame:hover { background: #F5F2EB; }"
+        "QLabel { background: transparent; border: none; }").arg(borderStyle));
 
     auto *hl = new QHBoxLayout(item);
-    hl->setContentsMargins(0, 0, 0, 0);
+    hl->setContentsMargins(20, 0, 20, 0);
     hl->setSpacing(12);
 
-    auto *dot = new QLabel(item);
-    dot->setFixedSize(8, 8);
-    dot->setStyleSheet(QString("background: %1; border-radius: 4px;").arg(color));
-
-    auto *text = new QLabel(QStringLiteral("%1   %2 件").arg(label).arg(count), item);
-    text->setStyleSheet("font-size: 14px; color: #334155; background: transparent; border: none;");
+    auto *text = new QLabel(label, item);
+    text->setStyleSheet("font-size: 13px; color: #141413; font-weight: 500;");
     text->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-    auto *arrow = new QLabel(QStringLiteral("→"), item);
-    arrow->setStyleSheet("font-size: 14px; color: #94a3b8; background: transparent; border: none;");
+    auto *countLabel = new QLabel(QString::number(count), item);
+    countLabel->setStyleSheet(
+        "font-size: 20px; font-weight: 600; color: #92400E;"
+        " font-family: 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;");
 
-    hl->addWidget(dot);
+    auto *arrow = new QLabel(QStringLiteral("→"), item);
+    arrow->setStyleSheet("font-size: 14px; color: #9A9A9A;");
+
     hl->addWidget(text);
     hl->addStretch();
+    hl->addWidget(countLabel);
+    hl->addSpacing(8);
     hl->addWidget(arrow);
 
     item->installEventFilter(page);
     return item;
   };
 
-  todoLayout->addWidget(createTodoItem(QStringLiteral("待处理工单"), woPendCount, "#b45309", "301", false));
-  todoLayout->addWidget(createTodoItem(QStringLiteral("待审核事件"), evPendCount, "#2563eb", "401", false));
-
   QSqlQuery annQ("SELECT COUNT(*) FROM nt_announcement WHERE del_flag = 0 AND date(publish_time) >= date('now', '-7 days')");
   int annCount = annQ.next() ? annQ.value(0).toInt() : 0;
-  todoLayout->addWidget(createTodoItem(QStringLiteral("近期公告"), annCount, "#15803d", "304", true));
+
+  todoLayout->addWidget(createTodoItem(QStringLiteral("待处理工单"), woPendCount, "301", false));
+  todoLayout->addWidget(createTodoItem(QStringLiteral("待审核事件"), evPendCount, "401", false));
+  todoLayout->addWidget(createTodoItem(QStringLiteral("近期公告"), annCount, "304", true));
   todoLayout->addStretch();
 
-  leftCol->addWidget(todoCard);
+  twoColLayout->addWidget(todoCard, 1);
 
-  // === Right column: Community dynamics + chart ===
-  auto *rightCol = new QVBoxLayout();
-  rightCol->setSpacing(16);
-
-  // Community dynamics - timeline
-  auto *dynamicCard = new QFrame(page);
-  dynamicCard->setMinimumHeight(340);
+  // === 右栏：社区动态时间线 ===
+  auto *dynamicCard = new QFrame(content);
   dynamicCard->setStyleSheet(
-      "QFrame { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; }"
+      "QFrame { background: #FAF9F6; border: 1px solid #141413; border-radius: 0; }"
       "QLabel { background: transparent; border: none; }");
   auto *dynLayout = new QVBoxLayout(dynamicCard);
-  dynLayout->setContentsMargins(20, 16, 20, 16);
+  dynLayout->setContentsMargins(0, 0, 0, 0);
   dynLayout->setSpacing(0);
 
-  auto *dynHeader = new QWidget(dynamicCard);
-  dynHeader->setStyleSheet("background: transparent; border: none;");
+  // 卡片头部
+  auto *dynHeader = new QFrame(dynamicCard);
+  dynHeader->setFixedHeight(48);
+  dynHeader->setStyleSheet("QFrame { background: #141413; border: none; } QLabel { background: transparent; color: #FAF9F6; border: none; }");
   auto *dynHeaderLayout = new QHBoxLayout(dynHeader);
-  dynHeaderLayout->setContentsMargins(0, 0, 0, 0);
-  dynHeaderLayout->setSpacing(0);
-
+  dynHeaderLayout->setContentsMargins(20, 0, 20, 0);
   auto *dynTitle = new QLabel(QStringLiteral("社区动态"), dynHeader);
-  dynTitle->setStyleSheet("font-size: 16px; font-weight: 600; color: #0f172a; background: transparent; border: none;");
+  dynTitle->setStyleSheet("font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;");
   dynHeaderLayout->addWidget(dynTitle);
   dynHeaderLayout->addStretch();
-
-  auto *viewAllBtn = new QPushButton(QStringLiteral("查看全部"), dynHeader);
-  viewAllBtn->setFlat(true);
-  viewAllBtn->setCursor(Qt::PointingHandCursor);
-  viewAllBtn->setStyleSheet(
-      "QPushButton { color: #b45309; border: none; background: transparent; font-size: 13px; padding: 0; }"
-      "QPushButton:hover { text-decoration: underline; }");
-  dynHeaderLayout->addWidget(viewAllBtn);
-
+  auto *dynHint = new QLabel(QStringLiteral("最近 5 条"), dynHeader);
+  dynHint->setStyleSheet("font-size: 11px; color: #9A9A9A; letter-spacing: 0.5px;");
+  dynHeaderLayout->addWidget(dynHint);
   dynLayout->addWidget(dynHeader);
-  dynLayout->addSpacing(12);
 
+  // 时间线
   auto *timelineContainer = new QWidget(dynamicCard);
-  timelineContainer->setMinimumHeight(364);
-  timelineContainer->setStyleSheet("background: transparent; border: none; border-left: 2px solid #e2e8f0;");
+  timelineContainer->setStyleSheet("background: #FAF9F6; border: none;");
   auto *timelineLayout = new QVBoxLayout(timelineContainer);
-  timelineLayout->setContentsMargins(12, 0, 0, 0);
+  timelineLayout->setContentsMargins(24, 20, 24, 20);
   timelineLayout->setSpacing(16);
 
   QSqlQuery dynQ;
   dynQ.prepare(QStringLiteral(
-                   "SELECT '工单' as type, title, create_time FROM wo_work_order WHERE del_flag = 0%1 "
-                   "UNION ALL SELECT '事件' as type, title, create_time FROM ge_event WHERE del_flag = 0%2 "
-                   "ORDER BY create_time DESC LIMIT 5")
-                   .arg(woScopeFilter)
-                   .arg(evScopeFilter));
-  if (onlySelf)
-    dynQ.bindValue(":scope_uid", user.id);
+      "SELECT '工单' as type, title, create_time FROM wo_work_order WHERE del_flag = 0%1 "
+      "UNION ALL SELECT '事件' as type, title, create_time FROM ge_event WHERE del_flag = 0%2 "
+      "ORDER BY create_time DESC LIMIT 5").arg(woScopeFilter).arg(evScopeFilter));
+  if (onlySelf) dynQ.bindValue(":scope_uid", user.id);
   dynQ.exec();
   while (dynQ.next())
   {
     QString type = dynQ.value(0).toString();
     QString title = dynQ.value(1).toString();
     QString time = dynQ.value(2).toDateTime().toString("MM-dd HH:mm");
-    QString color = type == QStringLiteral("工单") ? "#b45309" : "#2563eb";
 
     auto *item = new QWidget(timelineContainer);
-    item->setObjectName(QStringLiteral("dynItem_%1").arg(timelineLayout->count()));
-    item->setMinimumHeight(60);
     item->setStyleSheet("background: transparent; border: none;");
     auto *itemLayout = new QHBoxLayout(item);
     itemLayout->setContentsMargins(0, 0, 0, 0);
-    itemLayout->setSpacing(0);
-    itemLayout->setAlignment(Qt::AlignTop);
+    itemLayout->setSpacing(12);
 
-    // Fixed-width dot column aligned with the left timeline border
-    auto *dotContainer = new QWidget(item);
-    dotContainer->setFixedWidth(8);
-    dotContainer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
-    dotContainer->setStyleSheet("background: transparent; border: none;");
-    auto *dotLayout = new QVBoxLayout(dotContainer);
-    dotLayout->setContentsMargins(0, 4, 0, 0);
-    dotLayout->setSpacing(0);
-    dotLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+    // 类型标签（小方块，琥珀色）
+    auto *typeTag = new QLabel(type, item);
+    typeTag->setStyleSheet(
+        "background: #141413; color: #FAF9F6; padding: 2px 8px;"
+        " font-size: 10px; font-weight: 600; letter-spacing: 0.5px;");
+    typeTag->setFixedHeight(18);
 
-    auto *dot = new QLabel(item);
-    dot->setFixedSize(8, 8);
-    dot->setStyleSheet(QString("background: %1; border-radius: 4px;").arg(color));
-    dotLayout->addWidget(dot);
-
-    // Text column: occupies remaining width and wraps long titles
     auto *textWidget = new QWidget(item);
-    textWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    textWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     textWidget->setStyleSheet("background: transparent; border: none;");
     auto *textLayout = new QVBoxLayout(textWidget);
-    textLayout->setContentsMargins(12, 0, 0, 0);
+    textLayout->setContentsMargins(0, 0, 0, 0);
     textLayout->setSpacing(2);
-    textLayout->setAlignment(Qt::AlignTop);
 
     auto *titleLabel = new QLabel(title, textWidget);
-    titleLabel->setObjectName(QStringLiteral("dynTitleLabel_%1").arg(timelineLayout->count()));
-    titleLabel->setStyleSheet("font-size: 14px; color: #334155; background: transparent; border: none;");
+    titleLabel->setStyleSheet("font-size: 13px; color: #141413; font-weight: 500;");
     titleLabel->setWordWrap(true);
-    titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
-    titleLabel->setMinimumWidth(0);
 
     auto *timeLabel = new QLabel(time, textWidget);
-    timeLabel->setStyleSheet("font-size: 12px; color: #94a3b8; background: transparent; border: none;");
+    timeLabel->setStyleSheet("font-size: 11px; color: #9A9A9A; letter-spacing: 0.3px;");
 
     textLayout->addWidget(titleLabel);
     textLayout->addWidget(timeLabel);
 
-    itemLayout->addWidget(dotContainer);
+    itemLayout->addWidget(typeTag, 0, Qt::AlignTop);
     itemLayout->addWidget(textWidget, 1);
 
     timelineLayout->addWidget(item);
   }
   timelineLayout->addStretch();
 
-  auto *dynScroll = new QScrollArea(dynamicCard);
-  dynScroll->setWidgetResizable(true);
-  dynScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  dynScroll->setFrameShape(QFrame::NoFrame);
-  dynScroll->setStyleSheet(
-      "QScrollArea { border: none; background: transparent; }"
-      "QScrollBar:vertical { width: 6px; background: transparent; }"
-      "QScrollBar::handle:vertical { background: #cbd5e1; border-radius: 3px; }"
-      "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }");
-  dynScroll->setMaximumHeight(260);
-  dynScroll->setWidget(timelineContainer);
-  dynLayout->addWidget(dynScroll);
-  dynLayout->addStretch();
+  dynLayout->addWidget(timelineContainer, 1);
 
-  rightCol->addWidget(dynamicCard, 1);
-
-  // Data overview - pie chart
-  auto *chartCard = new QFrame(page);
-  chartCard->setMaximumHeight(320);
-  chartCard->setStyleSheet(
-      "QFrame { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; }"
-      "QLabel { background: transparent; border: none; }");
-  auto *chartLayout = new QVBoxLayout(chartCard);
-  chartLayout->setContentsMargins(20, 16, 20, 16);
-  chartLayout->setSpacing(8);
-
-  auto *chartTitle = new QLabel(QStringLiteral("工单状态分布"), chartCard);
-  chartTitle->setStyleSheet("font-size: 16px; font-weight: 600; color: #0f172a; background: transparent; border: none;");
-  chartLayout->addWidget(chartTitle);
-
-  auto *pieSeries = new QPieSeries();
-  QSqlQuery woStsQ;
-  woStsQ.prepare(QStringLiteral("SELECT status, COUNT(*) FROM wo_work_order WHERE del_flag = 0%1 GROUP BY status").arg(woScopeFilter));
-  if (onlySelf)
-    woStsQ.bindValue(":scope_uid", user.id);
-  woStsQ.exec();
-  QMap<int, QString> statusNames = {
-      {0, QStringLiteral("待处理")}, {1, QStringLiteral("已受理")}, {2, QStringLiteral("处理中")}, {3, QStringLiteral("待评价")}, {4, QStringLiteral("已完成")}, {5, QStringLiteral("已关闭")}};
-  QStringList palette = {"#b45309", "#2563eb", "#15803d", "#64748b", "#cbd5e1", "#d97706", "#0d9488", "#7c3aed"};
-  int colorIdx = 0;
-  while (woStsQ.next())
-  {
-    int sts = woStsQ.value(0).toInt();
-    int cnt = woStsQ.value(1).toInt();
-    QString name = statusNames.value(sts, QStringLiteral("未知"));
-    auto *slice = pieSeries->append(name, cnt);
-    slice->setColor(QColor(palette[colorIdx % palette.size()]));
-    slice->setLabelVisible(true);
-    slice->setLabelColor(QColor("#334155"));
-    slice->setLabelPosition(QPieSlice::LabelOutside);
-    slice->setLabel(QStringLiteral("%1\n%2").arg(name).arg(cnt));
-    ++colorIdx;
-  }
-  if (pieSeries->count() == 0)
-  {
-    auto *emptySlice = pieSeries->append(QStringLiteral("暂无数据"), 1);
-    emptySlice->setColor(QColor("#e2e8f0"));
-    emptySlice->setLabelVisible(true);
-    emptySlice->setLabelColor(QColor("#94a3b8"));
-  }
-
-  auto *pieChart = new QChart();
-  pieChart->addSeries(pieSeries);
-  pieChart->setAnimationOptions(QChart::SeriesAnimations);
-  pieChart->legend()->setAlignment(Qt::AlignRight);
-  pieChart->legend()->setLabelColor(QColor("#64748b"));
-  pieChart->legend()->setFont(QFont("Microsoft YaHei", 10));
-  pieSeries->setHoleSize(0.55);
-  pieChart->setMargins(QMargins(8, 0, 8, 0));
-  pieChart->setBackgroundVisible(false);
-
-  auto *chartView = new QChartView(pieChart, chartCard);
-  chartView->setRenderHint(QPainter::Antialiasing);
-  chartView->setMinimumHeight(200);
-  chartLayout->addWidget(chartView);
-  rightCol->addWidget(chartCard, 0);
-
-  auto *leftWidget = new QWidget(page);
-  leftWidget->setLayout(leftCol);
-  auto *rightWidget = new QWidget(page);
-  rightWidget->setLayout(rightCol);
-
-  twoColLayout->addWidget(leftWidget, 5);
-  twoColLayout->addWidget(rightWidget, 7);
+  twoColLayout->addWidget(dynamicCard, 1);
 
   layout->addLayout(twoColLayout, 1);
 

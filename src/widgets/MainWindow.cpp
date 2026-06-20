@@ -1,6 +1,70 @@
 #include "MainWindow.h"
 #include "PagesCommon.h"
 
+// ========== 统一页面注册表 ==========
+// 单一数据源：页面创建、面包屑、导航均从此处派生，消除多处维护
+namespace {
+using PageCreator = std::function<BasePage *()>;
+struct PageInfo
+{
+  QString group;     // 面包屑一级（空表示根页面）
+  QString title;     // 面包屑二级
+  PageCreator creator; // 页面工厂函数
+};
+static QMap<QString, PageInfo> &pageRegistry()
+{
+  static QMap<QString, PageInfo> reg = {
+      // Dashboard & 个人中心
+      {"1", {QString(), QStringLiteral("工作台"), []() { return PageFactory::createDashboardPage(); }}},
+      {"102", {QString(), QStringLiteral("待办中心"), []() { return PageFactory::createTodoPage(); }}},
+      {"103", {QString(), QStringLiteral("消息中心"), []() { return PageFactory::createMessagePage(); }}},
+      // 基础档案
+      {"201", {QStringLiteral("基础档案"), QStringLiteral("组织管理"), []() { return PageFactory::createArchivePage("org"); }}},
+      {"202", {QStringLiteral("基础档案"), QStringLiteral("小区管理"), []() { return PageFactory::createArchivePage("estate"); }}},
+      {"203", {QStringLiteral("基础档案"), QStringLiteral("房屋管理"), []() { return PageFactory::createArchivePage("house"); }}},
+      {"204", {QStringLiteral("基础档案"), QStringLiteral("居民管理"), []() { return PageFactory::createArchivePage("resident"); }}},
+      {"205", {QStringLiteral("基础档案"), QStringLiteral("车辆管理"), []() { return PageFactory::createArchivePage("vehicle"); }}},
+      {"206", {QStringLiteral("基础档案"), QStringLiteral("设施管理"), []() { return PageFactory::createArchivePage("facility"); }}},
+      {"207", {QStringLiteral("基础档案"), QStringLiteral("网格管理"), []() { return PageFactory::createArchivePage("grid"); }}},
+      {"208", {QStringLiteral("基础档案"), QStringLiteral("特殊群体"), []() { return PageFactory::createArchivePage("special"); }}},
+      // 小区管理
+      {"301", {QStringLiteral("小区管理"), QStringLiteral("报事报修"), []() { return PageFactory::createPropertyPage("workorder"); }}},
+      {"302", {QStringLiteral("小区管理"), QStringLiteral("投诉建议"), []() { return PageFactory::createPropertyPage("complaint"); }}},
+      {"303", {QStringLiteral("小区管理"), QStringLiteral("物业巡检"), []() { return PageFactory::createPropertyPage("inspection"); }}},
+      {"304", {QStringLiteral("小区管理"), QStringLiteral("公告通知"), []() { return PageFactory::createPropertyPage("announcement"); }}},
+      {"305", {QStringLiteral("小区管理"), QStringLiteral("访客管理"), []() { return PageFactory::createPropertyPage("visitor"); }}},
+      {"306", {QStringLiteral("小区管理"), QStringLiteral("业委会议题"), []() { return PageFactory::createPropertyPage("topic"); }}},
+      {"307", {QStringLiteral("小区管理"), QStringLiteral("停车管理"), []() { return PageFactory::createPropertyPage("parking"); }}},
+      {"308", {QStringLiteral("小区管理"), QStringLiteral("物业缴费"), []() { return PageFactory::createPropertyPage("billing"); }}},
+      {"309", {QStringLiteral("小区管理"), QStringLiteral("公共收益"), []() { return PageFactory::createPropertyPage("income"); }}},
+      // 社区治理
+      {"401", {QStringLiteral("社区治理"), QStringLiteral("网格事件"), []() { return PageFactory::createGovernancePage("event"); }}},
+      {"402", {QStringLiteral("社区治理"), QStringLiteral("社区巡查"), []() { return PageFactory::createGovernancePage("inspection"); }}},
+      {"403", {QStringLiteral("社区治理"), QStringLiteral("重点人群关怀"), []() { return PageFactory::createGovernancePage("care"); }}},
+      {"404", {QStringLiteral("社区治理"), QStringLiteral("督办管理"), []() { return PageFactory::createGovernancePage("supervision"); }}},
+      {"405", {QStringLiteral("社区治理"), QStringLiteral("民意收集"), []() { return PageFactory::createGovernancePage("opinion"); }}},
+      {"406", {QStringLiteral("社区治理"), QStringLiteral("考核管理"), []() { return PageFactory::createGovernancePage("assessment"); }}},
+      // 社区服务
+      {"501", {QStringLiteral("社区服务"), QStringLiteral("志愿服务"), []() { return PageFactory::createServicePage("volunteer"); }}},
+      {"502", {QStringLiteral("社区服务"), QStringLiteral("便民服务"), []() { return PageFactory::createServicePage("convenience"); }}},
+      {"503", {QStringLiteral("社区服务"), QStringLiteral("就业服务"), []() { return PageFactory::createServicePage("job"); }}},
+      // 统计分析
+      {"601", {QStringLiteral("统计分析"), QStringLiteral("工单统计"), []() { return PageFactory::createReportPage("workorder"); }}},
+      {"602", {QStringLiteral("统计分析"), QStringLiteral("事件统计"), []() { return PageFactory::createReportPage("event"); }}},
+      {"603", {QStringLiteral("统计分析"), QStringLiteral("服务统计"), []() { return PageFactory::createReportPage("service"); }}},
+      {"604", {QStringLiteral("统计分析"), QStringLiteral("综合看板"), []() { return PageFactory::createReportPage("dashboard"); }}},
+      // 系统管理
+      {"701", {QStringLiteral("系统管理"), QStringLiteral("用户管理"), []() { return PageFactory::createSystemPage("user"); }}},
+      {"702", {QStringLiteral("系统管理"), QStringLiteral("角色管理"), []() { return PageFactory::createSystemPage("role"); }}},
+      {"703", {QStringLiteral("系统管理"), QStringLiteral("菜单管理"), []() { return PageFactory::createSystemPage("menu"); }}},
+      {"704", {QStringLiteral("系统管理"), QStringLiteral("字典管理"), []() { return PageFactory::createSystemPage("dict"); }}},
+      {"705", {QStringLiteral("系统管理"), QStringLiteral("操作日志"), []() { return PageFactory::createSystemPage("log"); }}},
+      {"706", {QStringLiteral("系统管理"), QStringLiteral("智能问答"), []() { return PageFactory::createSystemPage("ai"); }}},
+  };
+  return reg;
+}
+} // anonymous namespace
+
 
 // 发送通知到指定用户（成员函数：写入后会刷新未读角标）
 void MainWindow::sendNotification(int userId, const QString &title, const QString &content, int type, const QString &bizType, int bizId)
@@ -33,13 +97,39 @@ MainWindow::~MainWindow() {}
 // watched 必须是 QWidget* 或其子类，否则忽略事件
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
+  // Icon Rail 按钮 hover 颜色过渡动画
+  if (event->type() == QEvent::Enter || event->type() == QEvent::Leave)
+  {
+    auto *btn = qobject_cast<QToolButton *>(watched);
+    if (btn && btn->property("isIconRailItem").toBool())
+    {
+      QString iconKey = btn->property("iconKey").toString();
+      bool isChecked = btn->isChecked();
+      // 选中态不动画（保持琥珀色）
+      if (!isChecked && !iconKey.isEmpty())
+      {
+        if (event->type() == QEvent::Enter)
+        {
+          // hover 进入：灰 → 浅琥珀
+          UiKit::animateIconColor(btn, iconKey, QColor("#9A9A9A"), QColor("#D97706"), 150);
+        }
+        else
+        {
+          // hover 离开：浅琥珀 → 灰
+          UiKit::animateIconColor(btn, iconKey, QColor("#D97706"), QColor("#9A9A9A"), 150);
+        }
+      }
+      return QMainWindow::eventFilter(watched, event);
+    }
+  }
+
   if (event->type() == QEvent::MouseButtonPress)
   {
     auto *mouseEvent = static_cast<QMouseEvent *>(event);
     if (mouseEvent->button() == Qt::LeftButton)
     {
       // 类型安全检查：确保 watched 是 QWidget
-      if (!qobject_cast<QWidget*>(watched))
+      if (!qobject_cast<QWidget *>(watched))
         return QMainWindow::eventFilter(watched, event);
 
       // 侧边栏导航项点击
@@ -69,25 +159,223 @@ void MainWindow::setupUI()
   mainLayout->setContentsMargins(0, 0, 0, 0);
   mainLayout->setSpacing(0);
 
-  // 左侧导航栏
-  m_sidebar = new QWidget(this);
-  m_sidebar->setFixedWidth(240);
-  m_sidebar->setStyleSheet(R"(
-        QWidget { background: #0f172a; }
-        QPushButton {
-            background: transparent; color: rgba(255,255,255,0.65);
-            border: none; border-left: 3px solid transparent;
-            padding: 11px 20px; text-align: left;
-            font-size: 14px; min-height: 42px;
-        }
-        QPushButton:hover { background: rgba(255,255,255,0.06); color: #ffffff; }
-        QPushButton[active="true"] { background: rgba(180,83,9,0.12); color: #ffffff; font-weight: 600; border-left: 3px solid #b45309; }
-        QLabel { background: transparent; }
-    )");
-  buildSidebar();
-  mainLayout->addWidget(m_sidebar);
+  // ========== 左侧第一栏：Icon Rail (64px) ==========
+  m_iconRail = new QWidget(this);
+  m_iconRail->setFixedWidth(64);
+  m_iconRail->setStyleSheet(QStringLiteral(
+      "QWidget { background: #0A0A0A; }"
+      "QToolButton {"
+      "  background: transparent; border: none; border-radius: 0;"
+      "  padding: 0; margin: 0;"
+      "}"
+      "QToolButton:hover { background: #1A1A1A; }"
+      "QToolButton:checked { background: #141413; border-left: 2px solid #B45309; }"
+      "QLabel { background: transparent; color: #FAF9F6; }"
+  ));
+  auto *railLayout = new QVBoxLayout(m_iconRail);
+  railLayout->setContentsMargins(0, 0, 0, 0);
+  railLayout->setSpacing(0);
 
-  // 右侧内容区
+  // Logo 区（顶部 56px，与顶栏对齐）
+  auto *logoWidget = new QWidget(m_iconRail);
+  logoWidget->setFixedHeight(56);
+  logoWidget->setStyleSheet("background: #0A0A0A; border-bottom: 1px solid #1A1A1A;");
+  auto *logoLayout = new QVBoxLayout(logoWidget);
+  logoLayout->setContentsMargins(0, 0, 0, 0);
+  logoLayout->setAlignment(Qt::AlignCenter);
+  auto *logoIcon = new QLabel(logoWidget);
+  QPixmap logoPix(":/app.svg");
+  // 着色为暖白
+  QImage logoImg = logoPix.toImage();
+  QPainter logoPainter(&logoImg);
+  logoPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+  logoPainter.fillRect(logoImg.rect(), QColor("#FAF9F6"));
+  logoPainter.end();
+  logoIcon->setPixmap(QPixmap::fromImage(logoImg).scaled(24, 24, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+  logoIcon->setAlignment(Qt::AlignCenter);
+  logoLayout->addWidget(logoIcon);
+  railLayout->addWidget(logoWidget);
+
+  // Icon Rail 内容区（可滚动）
+  auto *railScroll = new QScrollArea(m_iconRail);
+  railScroll->setWidgetResizable(true);
+  railScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  railScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  railScroll->setStyleSheet(
+      "QScrollArea { border: none; background: transparent; }"
+      "QScrollBar:vertical { width: 0; }");
+  auto *railContent = new QWidget(railScroll);
+  auto *railContentLayout = new QVBoxLayout(railContent);
+  railContentLayout->setContentsMargins(0, 8, 0, 8);
+  railContentLayout->setSpacing(4);
+
+  // 一级模块图标 — 从菜单数据构建
+  auto menus = AuthService::instance().currentUserMenus();
+  // 模块图标映射（menuName -> iconKey）
+  static const QMap<QString, QString> moduleIcons = {
+      {QStringLiteral("工作台"), QStringLiteral("ic_dashboard")},
+      {QStringLiteral("基础档案"), QStringLiteral("ic_layers")},
+      {QStringLiteral("小区管理"), QStringLiteral("ic_home")},
+      {QStringLiteral("社区治理"), QStringLiteral("ic_route")},
+      {QStringLiteral("社区服务"), QStringLiteral("ic_heart")},
+      {QStringLiteral("统计分析"), QStringLiteral("ic_chart")},
+      {QStringLiteral("系统管理"), QStringLiteral("ic_settings")},
+  };
+  // 模块对应的第一个子页面 key（用于点击图标时跳转）
+  static const QMap<QString, QString> moduleFirstPage = {
+      {QStringLiteral("工作台"), QStringLiteral("1")},
+      {QStringLiteral("基础档案"), QStringLiteral("201")},
+      {QStringLiteral("小区管理"), QStringLiteral("301")},
+      {QStringLiteral("社区治理"), QStringLiteral("401")},
+      {QStringLiteral("社区服务"), QStringLiteral("501")},
+      {QStringLiteral("统计分析"), QStringLiteral("601")},
+      {QStringLiteral("系统管理"), QStringLiteral("701")},
+  };
+
+  for (const auto &menu : menus)
+  {
+    QString moduleName = menu.menuName;
+    QString iconKey = moduleIcons.value(moduleName, QStringLiteral("ic_grid"));
+    QString firstPage = moduleFirstPage.value(moduleName, QString::number(menu.id));
+
+    // 工作台特殊：id=1，无子菜单
+    if (menu.id == 1)
+    {
+      firstPage = "1";
+    }
+
+    auto *btn = new QToolButton(railContent);
+    btn->setFixedSize(64, 56);
+    btn->setAutoRaise(true);
+    btn->setCursor(Qt::PointingHandCursor);
+    btn->setToolTip(moduleName);
+    // 图标着色为暖白
+    QPixmap pix(QString(":/icons/%1.svg").arg(iconKey));
+    QImage img = pix.toImage();
+    QPainter painter(&img);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(img.rect(), QColor("#9A9A9A"));
+    painter.end();
+    btn->setIcon(QIcon(QPixmap::fromImage(img).scaled(22, 22, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+    btn->setIconSize(QSize(22, 22));
+    btn->setCheckable(true);
+
+    // 点击切换模块
+    connect(btn, &QToolButton::clicked, this, [this, moduleName, firstPage, btn]()
+            {
+              if (m_activeIconRailItem && m_activeIconRailItem != btn) {
+                m_activeIconRailItem->setChecked(false);
+                // 恢复旧图标颜色为灰
+                QPixmap oldPix = m_activeIconRailItem->icon().pixmap(QSize(22, 22));
+                QImage oldImg = oldPix.toImage();
+                QPainter p(&oldImg);
+                p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+                p.fillRect(oldImg.rect(), QColor("#9A9A9A"));
+                p.end();
+                m_activeIconRailItem->setIcon(QIcon(QPixmap::fromImage(oldImg)));
+              }
+              btn->setChecked(true);
+              // 高亮当前图标为琥珀色
+              QPixmap newPix = QPixmap(QString(":/icons/%1.svg").arg(
+                  btn->property("iconKey").toString()));
+              QImage newImg = newPix.toImage();
+              QPainter p2(&newImg);
+              p2.setCompositionMode(QPainter::CompositionMode_SourceIn);
+              p2.fillRect(newImg.rect(), QColor("#B45309"));
+              p2.end();
+              btn->setIcon(QIcon(QPixmap::fromImage(newImg).scaled(22, 22, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+              m_activeIconRailItem = btn;
+              switchModule(moduleName);
+              switchPage(firstPage); });
+
+    btn->setProperty("iconKey", iconKey);
+    btn->setProperty("moduleName", moduleName);
+    btn->setProperty("isIconRailItem", true);  // 标记为 Icon Rail 项，用于 hover 动画
+    btn->installEventFilter(this);  // 安装事件过滤器，处理 hover 颜色过渡
+    m_iconRailItems[moduleName] = btn;
+    railContentLayout->addWidget(btn);
+
+    // 默认选中工作台
+    if (menu.id == 1 && m_activeIconRailItem == nullptr)
+    {
+      btn->setChecked(true);
+      // 高亮为琥珀色
+      QPixmap hpix(QString(":/icons/%1.svg").arg(iconKey));
+      QImage himg = hpix.toImage();
+      QPainter hp(&himg);
+      hp.setCompositionMode(QPainter::CompositionMode_SourceIn);
+      hp.fillRect(himg.rect(), QColor("#B45309"));
+      hp.end();
+      btn->setIcon(QIcon(QPixmap::fromImage(himg).scaled(22, 22, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+      m_activeIconRailItem = btn;
+      m_currentModule = moduleName;
+    }
+  }
+
+  railContentLayout->addStretch();
+  railScroll->setWidget(railContent);
+  railLayout->addWidget(railScroll, 1);
+  mainLayout->addWidget(m_iconRail);
+
+  // ========== 左侧第二栏：Section Panel (220px) ==========
+  m_sectionPanel = new QWidget(this);
+  m_sectionPanel->setFixedWidth(220);
+  m_sectionPanel->setStyleSheet(QStringLiteral(
+      "QWidget { background: #141413; }"
+      "QLabel { background: transparent; color: #FAF9F6; }"
+      "QPushButton {"
+      "  background: transparent; color: rgba(250, 249, 246, 0.55);"
+      "  border: none; border-left: 2px solid transparent;"
+      "  padding: 12px 20px; text-align: left;"
+      "  font-size: 13px; min-height: 38px; font-weight: 400;"
+      "}"
+      "QPushButton:hover { color: #FAF9F6; background: rgba(250, 249, 246, 0.04); }"
+      "QPushButton[active=\"true\"] {"
+      "  color: #FAF9F6; background: rgba(180, 83, 9, 0.12);"
+      "  border-left: 2px solid #B45309; font-weight: 600;"
+      "}"
+      "QScrollArea { border: none; background: transparent; }"
+      "QScrollBar:vertical { width: 4px; background: transparent; }"
+      "QScrollBar::handle:vertical { background: rgba(250, 249, 246, 0.15); border-radius: 0; min-height: 20px; }"
+      "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+  ));
+
+  auto *sectionLayout = new QVBoxLayout(m_sectionPanel);
+  sectionLayout->setContentsMargins(0, 0, 0, 0);
+  sectionLayout->setSpacing(0);
+
+  // Section 标题区（顶部 56px，与顶栏对齐）
+  auto *sectionHeader = new QWidget(m_sectionPanel);
+  sectionHeader->setFixedHeight(56);
+  sectionHeader->setStyleSheet("background: #141413; border-bottom: 1px solid #2A2A2A;");
+  auto *headerLayout = new QVBoxLayout(sectionHeader);
+  headerLayout->setContentsMargins(20, 0, 20, 0);
+  headerLayout->setAlignment(Qt::AlignVCenter);
+  m_sectionTitle = new QLabel(QStringLiteral("工作台"), sectionHeader);
+  m_sectionTitle->setStyleSheet(
+      "color: #FAF9F6; font-size: 15px; font-weight: 600;"
+      " font-family: 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;"
+      " background: transparent; letter-spacing: 1px;");
+  headerLayout->addWidget(m_sectionTitle);
+  sectionLayout->addWidget(sectionHeader);
+
+  // Section 内容区（可滚动）
+  auto *sectionScroll = new QScrollArea(m_sectionPanel);
+  sectionScroll->setWidgetResizable(true);
+  sectionScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  auto *sectionScrollContent = new QWidget(sectionScroll);
+  m_sectionLayout = new QVBoxLayout(sectionScrollContent);
+  m_sectionLayout->setContentsMargins(0, 8, 0, 8);
+  m_sectionLayout->setSpacing(0);
+  sectionScroll->setWidget(sectionScrollContent);
+  sectionLayout->addWidget(sectionScroll, 1);
+
+  mainLayout->addWidget(m_sectionPanel);
+
+  // 初始化工作台的 Section Panel（工作台无子菜单，显示快捷入口）
+  buildSectionPanel(m_currentModule);
+
+  // ========== 右侧内容区 ==========
   auto *rightPanel = new QWidget(this);
   auto *rightLayout = new QVBoxLayout(rightPanel);
   rightLayout->setContentsMargins(0, 0, 0, 0);
@@ -96,60 +384,75 @@ void MainWindow::setupUI()
   // 顶部栏
   m_topBar = new QWidget(this);
   m_topBar->setFixedHeight(56);
-  m_topBar->setStyleSheet(R"(
-        QWidget { background: #ffffff; border-bottom: 1px solid #e2e8f0; }
-        QLabel { color: #64748b; font-size: 14px; background: transparent; }
-        QPushButton {
-            background: transparent; color: #64748b; border: 1px solid #e2e8f0;
-            padding: 6px 16px; font-size: 13px; border-radius: 4px;
-        }
-        QPushButton:hover { color: #b45309; border-color: #b45309; }
-    )");
+  m_topBar->setStyleSheet(QStringLiteral(
+      "QWidget { background: #FAF9F6; border-bottom: 1px solid #D4D0C8; }"
+      "QLabel { color: #6B6B6B; font-size: 13px; background: transparent; }"
+      "QPushButton {"
+      "  background: transparent; color: #6B6B6B; border: 1px solid #D4D0C8;"
+      "  padding: 6px 16px; font-size: 13px; border-radius: 2px;"
+      "}"
+      "QPushButton:hover { color: #141413; border-color: #141413; }"
+      "QToolButton { background: transparent; border: none; border-radius: 2px; padding: 6px; }"
+      "QToolButton:hover { background: #F5F2EB; }"
+  ));
   auto *topLayout = new QHBoxLayout(m_topBar);
-  topLayout->setContentsMargins(20, 0, 20, 0);
+  topLayout->setContentsMargins(24, 0, 24, 0);
+  topLayout->setSpacing(0);
 
   // 面包屑容器（可点击导航）
   m_breadcrumbContainer = new QWidget(m_topBar);
   m_breadcrumbContainer->setStyleSheet("background: transparent;");
   m_breadcrumbLayout = new QHBoxLayout(m_breadcrumbContainer);
   m_breadcrumbLayout->setContentsMargins(0, 0, 0, 0);
-  m_breadcrumbLayout->setSpacing(6);
+  m_breadcrumbLayout->setSpacing(8);
   m_breadcrumbLayout->addStretch();
   topLayout->addWidget(m_breadcrumbContainer);
   topLayout->addStretch();
 
-  // 全局搜索框
+  // 全局搜索框 — 极简下划线风格
   m_globalSearchEdit = new QLineEdit(m_topBar);
   m_globalSearchEdit->setPlaceholderText(QStringLiteral("搜索功能、数据..."));
-  m_globalSearchEdit->setFixedWidth(220);
-  m_globalSearchEdit->setStyleSheet(
-      "QLineEdit { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px;"
-      " padding: 6px 14px; font-size: 13px; color: #334155; }"
-      "QLineEdit:focus { background: #ffffff; border-color: #b45309; }"
-      "QLineEdit:hover { border-color: #cbd5e1; }"
-      "QLineEdit::placeholder { color: #94a3b8; }");
+  m_globalSearchEdit->setFixedWidth(240);
+  m_globalSearchEdit->setStyleSheet(QStringLiteral(
+      "QLineEdit {"
+      "  background: transparent; border: none; border-bottom: 1px solid #D4D0C8;"
+      "  padding: 6px 4px 6px 28px; font-size: 13px; color: #141413;"
+      "}"
+      "QLineEdit:focus { border-bottom: 2px solid #92400E; padding-bottom: 5px; }"
+      "QLineEdit:hover { border-bottom: 1px solid #6B6B6B; }"
+      "QLineEdit::placeholder { color: #9A9A9A; }"));
+  // 添加搜索图标到左侧（通过 QLabel 覆盖）
+  auto *searchIconLabel = new QLabel(m_globalSearchEdit);
+  QPixmap searchPix(":/icons/ic_search.svg");
+  QImage searchImg = searchPix.toImage();
+  QPainter searchPainter(&searchImg);
+  searchPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+  searchPainter.fillRect(searchImg.rect(), QColor("#9A9A9A"));
+  searchPainter.end();
+  searchIconLabel->setPixmap(QPixmap::fromImage(searchImg).scaled(14, 14, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+  searchIconLabel->setGeometry(6, 11, 14, 14);
+  searchIconLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
   topLayout->addWidget(m_globalSearchEdit);
-  topLayout->addSpacing(12);
+  topLayout->addSpacing(16);
 
-  // 全局搜索下拉结果列表（绝对定位在搜索框下方）
+  // 全局搜索下拉结果列表
   m_searchDropdown = new QFrame(this);
   m_searchDropdown->setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint);
-  m_searchDropdown->setStyleSheet(
-      "QFrame { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; }"
+  m_searchDropdown->setStyleSheet(QStringLiteral(
+      "QFrame { background: #FFFFFF; border: 1px solid #141413; border-radius: 0; }"
       "QListWidget { background: transparent; border: none; outline: none; }"
-      "QListWidget::item { padding: 8px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155; }"
-      "QListWidget::item:hover { background: #fff7ed; color: #b45309; }"
-      "QListWidget::item:selected { background: #fff7ed; color: #b45309; }");
+      "QListWidget::item { padding: 10px 14px; border-bottom: 1px solid #E8E5DE; font-size: 13px; color: #141413; }"
+      "QListWidget::item:hover { background: #F5F2EB; color: #92400E; }"
+      "QListWidget::item:selected { background: #141413; color: #FAF9F6; }"));
   auto *dropdownLayout = new QVBoxLayout(m_searchDropdown);
   dropdownLayout->setContentsMargins(0, 0, 0, 0);
   dropdownLayout->setSpacing(0);
   m_searchResultList = new QListWidget(m_searchDropdown);
-  m_searchResultList->setMinimumWidth(240);
-  m_searchResultList->setMaximumHeight(320);
+  m_searchResultList->setMinimumWidth(260);
+  m_searchResultList->setMaximumHeight(360);
   dropdownLayout->addWidget(m_searchResultList);
   m_searchDropdown->hide();
 
-  // 搜索框文本变化触发搜索
   connect(m_globalSearchEdit, &QLineEdit::textChanged, this, [this](const QString &text)
           {
         QString keyword = text.trimmed();
@@ -159,12 +462,10 @@ void MainWindow::setupUI()
         }
         performGlobalSearch(keyword); });
 
-  // 搜索框失去焦点时延迟隐藏下拉列表
   connect(m_globalSearchEdit, &QLineEdit::editingFinished, this, [this]()
           { QTimer::singleShot(200, this, [this]()
                                { hideSearchDropdown(); }); });
 
-  // 点击搜索结果项跳转
   connect(m_searchResultList, &QListWidget::itemClicked, this, [this](QListWidgetItem *item)
           {
         if (!item) return;
@@ -181,24 +482,18 @@ void MainWindow::setupUI()
   m_refreshBtn->setFixedSize(32, 32);
   m_refreshBtn->setCursor(Qt::PointingHandCursor);
   m_refreshBtn->setToolTip(QStringLiteral("刷新当前页面"));
-  m_refreshBtn->setStyleSheet(
-      "QToolButton { background: transparent; border: none; border-radius: 4px; }"
-      "QToolButton:hover { background: #f1f5f9; }"
-      "QToolButton:pressed { background: #e2e8f0; }");
-  // 加载刷新图标并着色为灰色
   m_refreshIconPix = QPixmap(":/icons/ic_refresh.svg");
   if (!m_refreshIconPix.isNull())
   {
     QImage img = m_refreshIconPix.toImage();
     QPainter painter(&img);
     painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-    painter.fillRect(img.rect(), QColor("#64748b"));
+    painter.fillRect(img.rect(), QColor("#6B6B6B"));
     painter.end();
     m_refreshIconPix = QPixmap::fromImage(img).scaled(18, 18, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     m_refreshBtn->setIcon(QIcon(m_refreshIconPix));
     m_refreshBtn->setIconSize(QSize(18, 18));
   }
-  // 刷新旋转动画
   m_refreshAnimation = new QVariantAnimation(this);
   m_refreshAnimation->setDuration(500);
   m_refreshAnimation->setStartValue(0);
@@ -211,7 +506,6 @@ void MainWindow::setupUI()
         QTransform transform;
         transform.rotate(angle);
         QPixmap rotated = m_refreshIconPix.transformed(transform, Qt::SmoothTransformation);
-        // 居中裁剪到原始尺寸
         int xs = (rotated.width() - 18) / 2;
         int ys = (rotated.height() - 18) / 2;
         if (xs >= 0 && ys >= 0) {
@@ -220,70 +514,60 @@ void MainWindow::setupUI()
             m_refreshBtn->setIcon(QIcon(rotated));
         } });
   connect(m_refreshAnimation, &QVariantAnimation::finished, this, [this]()
-          {
-        // 动画结束恢复原图标
-        m_refreshBtn->setIcon(QIcon(m_refreshIconPix)); });
+          { m_refreshBtn->setIcon(QIcon(m_refreshIconPix)); });
   connect(m_refreshBtn, &QToolButton::clicked, this, &MainWindow::onRefreshBtnClicked);
   topLayout->addWidget(m_refreshBtn);
   topLayout->addSpacing(8);
 
-  // 通知铃铛按钮（QToolButton + 未读数角标）
+  // 通知铃铛按钮
   m_notifyBtn = new QToolButton(m_topBar);
   m_notifyBtn->setFixedSize(36, 36);
   m_notifyBtn->setCursor(Qt::PointingHandCursor);
-  m_notifyBtn->setStyleSheet(
-      "QToolButton { background: transparent; border: none; border-radius: 4px; }"
-      "QToolButton:hover { background: #f1f5f9; }");
   m_notifyBtn->setToolTip(QStringLiteral("通知消息"));
   auto *notifyIcon = new QLabel(m_notifyBtn);
   QPixmap bellPix(":/icons/ic_bell.svg");
-  // 着色为灰色
   QImage bellImg = bellPix.toImage();
   QPainter bellPainter(&bellImg);
   bellPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-  bellPainter.fillRect(bellImg.rect(), QColor("#64748b"));
+  bellPainter.fillRect(bellImg.rect(), QColor("#6B6B6B"));
   bellPainter.end();
   notifyIcon->setPixmap(QPixmap::fromImage(bellImg).scaled(18, 18, Qt::KeepAspectRatio, Qt::SmoothTransformation));
   notifyIcon->setAlignment(Qt::AlignCenter);
   notifyIcon->setGeometry(9, 9, 18, 18);
   notifyIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-  // 未读数角标（红色圆形数字）
   m_notificationBadge = new QLabel(m_notifyBtn);
   m_notificationBadge->setAlignment(Qt::AlignCenter);
-  m_notificationBadge->setStyleSheet(
-      "QLabel { background: #dc2626; color: #ffffff; font-size: 10px; font-weight: bold;"
-      " border-radius: 4px; min-width: 16px; padding: 0 4px; }");
-  m_notificationBadge->setFixedHeight(16);
+  m_notificationBadge->setStyleSheet(QStringLiteral(
+      "QLabel { background: #DC2626; color: #FFFFFF; font-size: 11px; font-weight: bold;"
+      " border-radius: 0; min-width: 18px; min-height: 18px; padding: 0 4px; }"));
+  m_notificationBadge->setFixedHeight(18);
   m_notificationBadge->setVisible(false);
   m_notificationBadge->setAttribute(Qt::WA_TransparentForMouseEvents);
-  // 角标定位到按钮右上角
   m_notificationBadge->raise();
 
   topLayout->addWidget(m_notifyBtn);
   topLayout->addSpacing(8);
 
-  // 通知铃铛点击跳转到消息中心
   connect(m_notifyBtn, &QToolButton::clicked, this, &MainWindow::onNotifyBtnClicked);
 
-  // 用户下拉菜单按钮（显示角色 | 用户名 + ▼）
+  // 用户下拉菜单按钮
   m_userMenuBtn = new QToolButton(this);
   m_userMenuBtn->setAutoRaise(true);
   m_userMenuBtn->setCursor(Qt::PointingHandCursor);
-  m_userMenuBtn->setStyleSheet(
+  m_userMenuBtn->setStyleSheet(QStringLiteral(
       "QToolButton { background: transparent; border: none; padding: 4px 8px;"
-      " color: #334155; font-size: 14px; font-weight: 500; }"
-      "QToolButton:hover { color: #b45309; }");
-  // 占位文本，updateUserInfo() 中会刷新
+      " color: #141413; font-size: 13px; font-weight: 500; }"
+      "QToolButton:hover { color: #92400E; }"));
   m_userMenuBtn->setText(QStringLiteral("admin ▼"));
   m_userMenuBtn->setToolButtonStyle(Qt::ToolButtonTextOnly);
 
   QMenu *userMenu = new QMenu(m_userMenuBtn);
-  userMenu->setStyleSheet(
-      "QMenu { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px; }"
-      "QMenu::item { padding: 8px 24px; font-size: 13px; color: #334155; border-radius: 4px; }"
-      "QMenu::item:selected { background: #fff7ed; color: #b45309; }"
-      "QMenu::separator { height: 1px; background: #f1f5f9; margin: 4px 8px; }");
+  userMenu->setStyleSheet(QStringLiteral(
+      "QMenu { background: #FFFFFF; border: 1px solid #141413; border-radius: 0; padding: 4px; }"
+      "QMenu::item { padding: 10px 24px; font-size: 13px; color: #141413; }"
+      "QMenu::item:selected { background: #141413; color: #FAF9F6; }"
+      "QMenu::separator { height: 1px; background: #E8E5DE; margin: 4px 8px; }"));
   auto *profileAction = userMenu->addAction(QStringLiteral("个人中心"));
   auto *pwdAction = userMenu->addAction(QStringLiteral("修改密码"));
   userMenu->addSeparator();
@@ -292,15 +576,10 @@ void MainWindow::setupUI()
   m_userMenuBtn->setPopupMode(QToolButton::InstantPopup);
   m_userMenuBtn->setMenu(userMenu);
 
-  // 个人中心：弹出个人资料对话框
   connect(profileAction, &QAction::triggered, this, [this]()
           { ProfileDialog::show(this); });
-
-  // 修改密码
   connect(pwdAction, &QAction::triggered, this, [this]()
           { ChangePasswordDialog::show(this); });
-
-  // 退出登录
   connect(logoutAction, &QAction::triggered, this, [this]()
           {
         if (QMessageBox::question(this, QStringLiteral("确认"), QStringLiteral("确定要退出登录吗？")) == QMessageBox::Yes) {
@@ -312,177 +591,191 @@ void MainWindow::setupUI()
 
   // 内容区域
   m_contentStack = new QStackedWidget(this);
-  m_contentStack->setStyleSheet("QStackedWidget { background: #f8fafc; }");
+  m_contentStack->setStyleSheet("QStackedWidget { background: #FAF9F6; }");
   rightLayout->addWidget(m_contentStack);
 
-  mainLayout->addWidget(rightPanel);
+  mainLayout->addWidget(rightPanel, 1);
 
-  // 默认显示首页（菜单ID=1 对应工作台）
+  // 默认显示首页
   switchPage("1");
-  // 初始化完成后刷新未读角标
   updateNotificationBadge();
 }
 
-void MainWindow::buildSidebar()
+// ========== 第二栏 Section Panel 构建 ==========
+// 根据一级模块名构建二级面板内容；工作台模块显示快捷入口
+void MainWindow::buildSectionPanel(const QString &moduleKey)
 {
-  auto *scrollArea = new QScrollArea(m_sidebar);
-  scrollArea->setWidgetResizable(true);
-  scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  scrollArea->setStyleSheet(
-      "QScrollArea { border: none; background: transparent; }"
-      "QScrollBar:vertical { width: 4px; background: transparent; }"
-      "QScrollBar::handle:vertical { background: rgba(255,255,255,0.15); border-radius: 2px; min-height: 20px; }"
-      "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }");
+  if (!m_sectionLayout || moduleKey.isEmpty())
+    return;
 
-  auto *scrollContent = new QWidget(scrollArea);
-  auto *layout = new QVBoxLayout(scrollContent);
-  layout->setContentsMargins(0, 4, 0, 0);
-  layout->setSpacing(0);
-
-  auto menus = AuthService::instance().currentUserMenus();
-  for (const auto &menu : menus)
+  // 清空旧内容（保留 stretch）
+  QLayoutItem *child;
+  while ((child = m_sectionLayout->takeAt(0)) != nullptr)
   {
-    // 工作台(id=1)特殊处理：直接作为可点击项，跳转到首页
-    if (menu.id == 1)
+    if (child->widget())
     {
-      auto *item = createSidebarItem(menu.icon, menu.menuName, "1", false);
-      layout->addWidget(item);
-      m_sidebarItems["1"] = item;
-      if (m_activeSidebarItem == nullptr)
-      {
-        m_activeSidebarItem = item;
-        item->setProperty("active", true);
-        item->style()->unpolish(item);
-        item->style()->polish(item);
-      }
+      child->widget()->deleteLater();
     }
-    else if (!menu.children.isEmpty())
-    {
-      // 父菜单 - 可折叠分组
-      auto *groupWidget = new QWidget(scrollContent);
-      groupWidget->setStyleSheet("background: transparent;");
+    delete child;
+  }
+  m_sectionItems.clear();
+  m_activeSectionItem = nullptr;
 
-      auto *groupLayout = new QVBoxLayout(groupWidget);
-      groupLayout->setContentsMargins(0, 0, 0, 0);
-      groupLayout->setSpacing(0);
-
-      // 分组标题按钮（可点击展开/折叠）
-      auto *groupHeader = new QPushButton(menu.menuName, groupWidget);
-      groupHeader->setCheckable(true);
-      groupHeader->setObjectName("groupHeader");
-      groupHeader->setStyleSheet(
-          "QPushButton#groupHeader {"
-          "   background: transparent; color: rgba(255,255,255,0.40); border: none;"
-          "   padding: 12px 20px 6px 20px; text-align: left; font-size: 11px; font-weight: 600;"
-          "   min-height: 28px; letter-spacing: 0; text-transform: none;"
-          "}"
-          "QPushButton#groupHeader:hover { color: rgba(255,255,255,0.65); }"
-          "QPushButton#groupHeader::indicator { width: 0; height: 0; }");
-
-      // 子菜单容器
-      auto *childContainer = new QWidget(groupWidget);
-      childContainer->setObjectName("childContainer");
-      auto *childLayout = new QVBoxLayout(childContainer);
-      childLayout->setContentsMargins(0, 0, 0, 2);
-      childLayout->setSpacing(0);
-
-      for (const auto &child : menu.children)
-      {
-        auto *item = createSidebarItem(child.icon, child.menuName, QString::number(child.id), false);
-        childLayout->addWidget(item);
-        m_sidebarItems[QString::number(child.id)] = item;
-        if (m_activeSidebarItem == nullptr)
-        {
-          m_activeSidebarItem = item;
-          item->setProperty("active", true);
-          item->style()->unpolish(item);
-          item->style()->polish(item);
-        }
-      }
-
-      // 添加到列表（用于手风琴模式）
-      m_groupHeaders.append(groupHeader);
-      m_groupContainers.append(childContainer);
-
-      // 手风琴模式：默认只有第一个分组展开
-      bool isFirstGroup = (m_groupHeaders.size() == 1);
-      groupHeader->setChecked(isFirstGroup);
-      if (!isFirstGroup)
-        childContainer->setVisible(false);
-
-      // 连接折叠/展开信号 - 手风琴模式
-      connect(groupHeader, &QPushButton::toggled, this, [this, groupHeader, childContainer](bool checked)
-              {
-                childContainer->setVisible(checked);
-                if (checked) {
-                    // 手风琴模式：折叠其他分组
-                    for (int i = 0; i < m_groupHeaders.size(); ++i) {
-                        if (m_groupHeaders[i] != groupHeader && m_groupHeaders[i]->isChecked()) {
-                            m_groupHeaders[i]->blockSignals(true);
-                            m_groupHeaders[i]->setChecked(false);
-                            m_groupHeaders[i]->blockSignals(false);
-                            m_groupContainers[i]->setVisible(false);
-                        }
-                    }
-                } });
-
-      groupLayout->addWidget(groupHeader);
-      groupLayout->addWidget(childContainer);
-      layout->addWidget(groupWidget);
-    }
+  // 更新标题
+  if (m_sectionTitle)
+  {
+    m_sectionTitle->setText(moduleKey);
   }
 
-  layout->addStretch();
-  scrollArea->setWidget(scrollContent);
+  // 模块对应的子页面列表（从统一页面注册表派生）
+  // key=pageKey, title=显示名
+  struct SectionEntry
+  {
+    QString pageKey;
+    QString title;
+  };
+  static const QMap<QString, QList<SectionEntry>> moduleSections = {
+      {QStringLiteral("工作台"), {
+                                    {QStringLiteral("1"), QStringLiteral("工作台首页")},
+                                    {QStringLiteral("102"), QStringLiteral("待办中心")},
+                                    {QStringLiteral("103"), QStringLiteral("消息中心")},
+                                }},
+      {QStringLiteral("基础档案"), {
+                                      {QStringLiteral("201"), QStringLiteral("组织管理")},
+                                      {QStringLiteral("202"), QStringLiteral("小区管理")},
+                                      {QStringLiteral("203"), QStringLiteral("房屋管理")},
+                                      {QStringLiteral("204"), QStringLiteral("居民管理")},
+                                      {QStringLiteral("205"), QStringLiteral("车辆管理")},
+                                      {QStringLiteral("206"), QStringLiteral("设施管理")},
+                                      {QStringLiteral("207"), QStringLiteral("网格管理")},
+                                      {QStringLiteral("208"), QStringLiteral("特殊群体")},
+                                  }},
+      {QStringLiteral("小区管理"), {
+                                      {QStringLiteral("301"), QStringLiteral("报事报修")},
+                                      {QStringLiteral("302"), QStringLiteral("投诉建议")},
+                                      {QStringLiteral("303"), QStringLiteral("物业巡检")},
+                                      {QStringLiteral("304"), QStringLiteral("公告通知")},
+                                      {QStringLiteral("305"), QStringLiteral("访客管理")},
+                                      {QStringLiteral("306"), QStringLiteral("业委会议题")},
+                                      {QStringLiteral("307"), QStringLiteral("停车管理")},
+                                      {QStringLiteral("308"), QStringLiteral("物业缴费")},
+                                      {QStringLiteral("309"), QStringLiteral("公共收益")},
+                                  }},
+      {QStringLiteral("社区治理"), {
+                                      {QStringLiteral("401"), QStringLiteral("网格事件")},
+                                      {QStringLiteral("402"), QStringLiteral("社区巡查")},
+                                      {QStringLiteral("403"), QStringLiteral("重点人群关怀")},
+                                      {QStringLiteral("404"), QStringLiteral("督办管理")},
+                                      {QStringLiteral("405"), QStringLiteral("民意收集")},
+                                      {QStringLiteral("406"), QStringLiteral("考核管理")},
+                                  }},
+      {QStringLiteral("社区服务"), {
+                                      {QStringLiteral("501"), QStringLiteral("志愿服务")},
+                                      {QStringLiteral("502"), QStringLiteral("便民服务")},
+                                      {QStringLiteral("503"), QStringLiteral("就业服务")},
+                                  }},
+      {QStringLiteral("统计分析"), {
+                                      {QStringLiteral("601"), QStringLiteral("工单统计")},
+                                      {QStringLiteral("602"), QStringLiteral("事件统计")},
+                                      {QStringLiteral("603"), QStringLiteral("服务统计")},
+                                      {QStringLiteral("604"), QStringLiteral("综合看板")},
+                                  }},
+      {QStringLiteral("系统管理"), {
+                                      {QStringLiteral("701"), QStringLiteral("用户管理")},
+                                      {QStringLiteral("702"), QStringLiteral("角色管理")},
+                                      {QStringLiteral("703"), QStringLiteral("菜单管理")},
+                                      {QStringLiteral("704"), QStringLiteral("字典管理")},
+                                      {QStringLiteral("705"), QStringLiteral("操作日志")},
+                                      {QStringLiteral("706"), QStringLiteral("智能问答")},
+                                  }},
+  };
 
-  auto *sidebarLayout = new QVBoxLayout(m_sidebar);
-  sidebarLayout->setContentsMargins(0, 0, 0, 0);
-  sidebarLayout->setSpacing(0);
+  const auto entries = moduleSections.value(moduleKey);
+  for (const auto &entry : entries)
+  {
+    QWidget *item = createSectionItem(entry.title, entry.pageKey);
+    m_sectionLayout->addWidget(item);
+    m_sectionItems[entry.pageKey] = item;
+  }
 
-  // Logo
-  auto *logoWidget = new QWidget(m_sidebar);
-  logoWidget->setFixedHeight(56);
-  logoWidget->setStyleSheet("background: #0f172a;");
-  auto *logoLayout = new QHBoxLayout(logoWidget);
-  logoLayout->setContentsMargins(20, 0, 20, 0);
-  logoLayout->setSpacing(10);
-  auto *logoIcon = new QLabel(logoWidget);
-  QPixmap logoPix(":/app.svg");
-  logoIcon->setPixmap(logoPix.scaled(28, 28, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-  logoIcon->setStyleSheet("background: transparent;");
-  auto *logoText = new QLabel(QStringLiteral("智慧社区"), logoWidget);
-  logoText->setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 700; background: transparent; letter-spacing: 2px;");
-  logoLayout->addWidget(logoIcon);
-  logoLayout->addWidget(logoText);
-  logoLayout->addStretch();
-  sidebarLayout->addWidget(logoWidget);
-  sidebarLayout->addWidget(scrollArea);
+  m_sectionLayout->addStretch();
+
+  // 内容区淡入动画（150ms，克制快速）
+  // 只对内容容器做动画，标题保持稳定
+  if (m_sectionLayout && m_sectionLayout->parentWidget())
+  {
+    UiKit::fadeInWidget(m_sectionLayout->parentWidget(), 150);
+  }
 }
 
-QWidget *MainWindow::createSidebarItem(const QString &icon, const QString &text, const QString &key, bool isHeader)
+// 创建二级面板项（QPushButton，左侧琥珀色边框表示选中态）
+QWidget *MainWindow::createSectionItem(const QString &text, const QString &key)
 {
-  auto *btn = new QPushButton(text, m_sidebar);
+  auto *btn = new QPushButton(text, m_sectionPanel);
+  btn->setCursor(Qt::PointingHandCursor);
   btn->setProperty("key", key);
-  if (isHeader)
-  {
-    btn->setEnabled(false);
-  }
-  else
-  {
-    connect(btn, &QPushButton::clicked, this, [this, key, btn]()
-            {
-            if (m_activeSidebarItem && m_activeSidebarItem != btn) {
-                m_activeSidebarItem->setProperty("active", false);
-                m_activeSidebarItem->style()->unpolish(m_activeSidebarItem);
-                m_activeSidebarItem->style()->polish(m_activeSidebarItem);
+  btn->setProperty("active", false);
+
+  connect(btn, &QPushButton::clicked, this, [this, key, btn]()
+          {
+            if (m_activeSectionItem && m_activeSectionItem != btn) {
+              m_activeSectionItem->setProperty("active", false);
+              m_activeSectionItem->style()->unpolish(m_activeSectionItem);
+              m_activeSectionItem->style()->polish(m_activeSectionItem);
             }
             btn->setProperty("active", true);
             btn->style()->unpolish(btn);
             btn->style()->polish(btn);
-            m_activeSidebarItem = btn;
+            m_activeSectionItem = btn;
             switchPage(key); });
-  }
+
   return btn;
+}
+
+// 切换一级模块：更新 Section Panel 内容，并同步 Icon Rail 高亮
+void MainWindow::switchModule(const QString &moduleKey)
+{
+  if (moduleKey == m_currentModule && m_sectionItems.size() > 0)
+    return; // 已是当前模块，无需重建
+
+  m_currentModule = moduleKey;
+  buildSectionPanel(moduleKey);
+
+  // 同步 Icon Rail 高亮
+  auto *railBtn = m_iconRailItems.value(moduleKey, nullptr);
+  if (railBtn && m_activeIconRailItem != railBtn)
+  {
+    // 恢复旧图标为灰色
+    if (m_activeIconRailItem)
+    {
+      m_activeIconRailItem->setChecked(false);
+      QString oldIconKey = m_activeIconRailItem->property("iconKey").toString();
+      if (!oldIconKey.isEmpty())
+      {
+        QPixmap oldPix(QString(":/icons/%1.svg").arg(oldIconKey));
+        QImage oldImg = oldPix.toImage();
+        QPainter p(&oldImg);
+        p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        p.fillRect(oldImg.rect(), QColor("#9A9A9A"));
+        p.end();
+        m_activeIconRailItem->setIcon(QIcon(QPixmap::fromImage(oldImg).scaled(22, 22, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+      }
+    }
+    // 高亮新图标为琥珀色
+    railBtn->setChecked(true);
+    QString newIconKey = railBtn->property("iconKey").toString();
+    if (!newIconKey.isEmpty())
+    {
+      QPixmap newPix(QString(":/icons/%1.svg").arg(newIconKey));
+      QImage newImg = newPix.toImage();
+      QPainter p2(&newImg);
+      p2.setCompositionMode(QPainter::CompositionMode_SourceIn);
+      p2.fillRect(newImg.rect(), QColor("#B45309"));
+      p2.end();
+      railBtn->setIcon(QIcon(QPixmap::fromImage(newImg).scaled(22, 22, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+    }
+    m_activeIconRailItem = railBtn;
+  }
 }
 
 void MainWindow::switchPage(const QString &key)
@@ -499,55 +792,75 @@ void MainWindow::switchPage(const QString &key)
       idx = m_contentStack->count() - 1;
     }
     m_contentStack->setCurrentIndex(idx);
-    // Page transition: fade-in animation
-    UiKit::fadeInWidget(page);
+    // Page transition: 淡入动画（200ms OutCubic，克制快速）
+    // 注意：不对 stack 子页面做位移，避免布局错乱
+    UiKit::fadeInWidget(page, 200);
   }
 
-  // 更新面包屑（可点击导航）
-  static const QMap<QString, QPair<QString, QString>> breadcrumbMap = {
-      {"1", {"", QStringLiteral("工作台")}},
-      {"102", {"", QStringLiteral("待办中心")}},
-      {"103", {"", QStringLiteral("消息中心")}},
-      {"201", {QStringLiteral("基础档案"), QStringLiteral("组织管理")}},
-      {"202", {QStringLiteral("基础档案"), QStringLiteral("小区管理")}},
-      {"203", {QStringLiteral("基础档案"), QStringLiteral("房屋管理")}},
-      {"204", {QStringLiteral("基础档案"), QStringLiteral("居民管理")}},
-      {"205", {QStringLiteral("基础档案"), QStringLiteral("车辆管理")}},
-      {"206", {QStringLiteral("基础档案"), QStringLiteral("设施管理")}},
-      {"207", {QStringLiteral("基础档案"), QStringLiteral("网格管理")}},
-      {"208", {QStringLiteral("基础档案"), QStringLiteral("特殊群体")}},
-      {"301", {QStringLiteral("小区管理"), QStringLiteral("报事报修")}},
-      {"302", {QStringLiteral("小区管理"), QStringLiteral("投诉建议")}},
-      {"303", {QStringLiteral("小区管理"), QStringLiteral("物业巡检")}},
-      {"304", {QStringLiteral("小区管理"), QStringLiteral("公告通知")}},
-      {"305", {QStringLiteral("小区管理"), QStringLiteral("访客管理")}},
-      {"306", {QStringLiteral("小区管理"), QStringLiteral("业委会议题")}},
-      {"307", {QStringLiteral("小区管理"), QStringLiteral("停车管理")}},
-      {"308", {QStringLiteral("小区管理"), QStringLiteral("物业缴费")}},
-      {"309", {QStringLiteral("小区管理"), QStringLiteral("公共收益")}},
-      {"401", {QStringLiteral("社区治理"), QStringLiteral("网格事件")}},
-      {"402", {QStringLiteral("社区治理"), QStringLiteral("社区巡查")}},
-      {"403", {QStringLiteral("社区治理"), QStringLiteral("重点人群关怀")}},
-      {"404", {QStringLiteral("社区治理"), QStringLiteral("督办管理")}},
-      {"405", {QStringLiteral("社区治理"), QStringLiteral("民意收集")}},
-      {"406", {QStringLiteral("社区治理"), QStringLiteral("考核管理")}},
-      {"501", {QStringLiteral("社区服务"), QStringLiteral("志愿服务")}},
-      {"502", {QStringLiteral("社区服务"), QStringLiteral("便民服务")}},
-      {"503", {QStringLiteral("社区服务"), QStringLiteral("就业服务")}},
-      {"601", {QStringLiteral("统计分析"), QStringLiteral("工单统计")}},
-      {"602", {QStringLiteral("统计分析"), QStringLiteral("事件统计")}},
-      {"603", {QStringLiteral("统计分析"), QStringLiteral("服务统计")}},
-      {"604", {QStringLiteral("统计分析"), QStringLiteral("综合看板")}},
-      {"701", {QStringLiteral("系统管理"), QStringLiteral("用户管理")}},
-      {"702", {QStringLiteral("系统管理"), QStringLiteral("角色管理")}},
-      {"703", {QStringLiteral("系统管理"), QStringLiteral("菜单管理")}},
-      {"704", {QStringLiteral("系统管理"), QStringLiteral("字典管理")}},
-      {"705", {QStringLiteral("系统管理"), QStringLiteral("操作日志")}},
-      {"706", {QStringLiteral("系统管理"), QStringLiteral("智能问答")}}};
-  auto it = breadcrumbMap.constFind(key);
-  if (it != breadcrumbMap.constEnd())
+  // 更新面包屑（从统一页面注册表派生，消除重复维护）
+  auto &reg = pageRegistry();
+  auto it = reg.constFind(key);
+  if (it != reg.constEnd())
   {
-    updateBreadcrumb(it.value().first, it.value().second);
+    updateBreadcrumb(it->group, it->title);
+
+    // 同步 Section Panel 高亮（如果该页面属于当前模块）
+    auto sectionIt = m_sectionItems.find(key);
+    if (sectionIt != m_sectionItems.end() && sectionIt.value())
+    {
+      auto *btn = qobject_cast<QPushButton *>(sectionIt.value());
+      if (btn && m_activeSectionItem != btn)
+      {
+        if (m_activeSectionItem)
+        {
+          m_activeSectionItem->setProperty("active", false);
+          m_activeSectionItem->style()->unpolish(m_activeSectionItem);
+          m_activeSectionItem->style()->polish(m_activeSectionItem);
+        }
+        btn->setProperty("active", true);
+        btn->style()->unpolish(btn);
+        btn->style()->polish(btn);
+        m_activeSectionItem = btn;
+      }
+    }
+    else
+    {
+      // 该页面不在当前模块下，需要切换模块
+      // 通过页面 key 前缀判断所属模块
+      QString newModule;
+      if (key == "1" || key == "102" || key == "103")
+        newModule = QStringLiteral("工作台");
+      else if (key.startsWith("2"))
+        newModule = QStringLiteral("基础档案");
+      else if (key.startsWith("3"))
+        newModule = QStringLiteral("小区管理");
+      else if (key.startsWith("4"))
+        newModule = QStringLiteral("社区治理");
+      else if (key.startsWith("5"))
+        newModule = QStringLiteral("社区服务");
+      else if (key.startsWith("6"))
+        newModule = QStringLiteral("统计分析");
+      else if (key.startsWith("7"))
+        newModule = QStringLiteral("系统管理");
+
+      if (!newModule.isEmpty() && newModule != m_currentModule)
+      {
+        switchModule(newModule);
+        // 切换模块后再次同步 Section Panel 高亮
+        auto it2 = m_sectionItems.find(key);
+        if (it2 != m_sectionItems.end() && it2.value())
+        {
+          auto *btn = qobject_cast<QPushButton *>(it2.value());
+          if (btn)
+          {
+            btn->setProperty("active", true);
+            btn->style()->unpolish(btn);
+            btn->style()->polish(btn);
+            m_activeSectionItem = btn;
+          }
+        }
+      }
+    }
   }
   else
   {
@@ -588,6 +901,9 @@ void MainWindow::updateNotificationBadge()
     }
   }
 
+  // 获取上次的未读数（用于检测增加时触发脉冲动画）
+  int lastUnread = m_notificationBadge->property("lastUnread").toInt();
+
   if (unreadCount <= 0)
   {
     m_notificationBadge->setVisible(false);
@@ -607,7 +923,16 @@ void MainWindow::updateNotificationBadge()
       x = 0;
     m_notificationBadge->setGeometry(x, y, badgeW, badgeH);
     m_notificationBadge->raise();
+
+    // 未读数增加时触发脉冲动画（克制反馈）
+    if (unreadCount > lastUnread)
+    {
+      UiKit::pulseWidget(m_notificationBadge, 400);
+    }
   }
+
+  // 保存当前未读数
+  m_notificationBadge->setProperty("lastUnread", unreadCount);
 }
 
 // ========== 全局搜索功能 ==========
@@ -649,11 +974,13 @@ void MainWindow::performGlobalSearch(const QString &keyword)
     {
       while (q.next())
       {
+        qint64 woId = q.value(0).toLongLong();
         QString title = q.value(1).toString();
         QString display = QStringLiteral("[工单] %1").arg(title);
         auto *item = new QListWidgetItem(display);
         item->setData(Qt::UserRole, QStringLiteral("workorder"));
         item->setData(Qt::UserRole + 1, QStringLiteral("301"));
+        item->setData(Qt::UserRole + 2, woId);
         m_searchResultList->addItem(item);
       }
     }
@@ -668,11 +995,13 @@ void MainWindow::performGlobalSearch(const QString &keyword)
     {
       while (q.next())
       {
+        qint64 evId = q.value(0).toLongLong();
         QString title = q.value(1).toString();
         QString display = QStringLiteral("[事件] %1").arg(title);
         auto *item = new QListWidgetItem(display);
         item->setData(Qt::UserRole, QStringLiteral("event"));
         item->setData(Qt::UserRole + 1, QStringLiteral("401"));
+        item->setData(Qt::UserRole + 2, evId);
         m_searchResultList->addItem(item);
       }
     }
@@ -724,12 +1053,25 @@ void MainWindow::onSearchResultClicked(int row)
   if (m_globalSearchEdit)
     m_globalSearchEdit->clear();
 
-  if (type == "menu" || type == "workorder" || type == "event")
+  if (type == "menu")
   {
     if (!target.isEmpty())
-    {
       switchPage(target);
-    }
+  }
+  else if (type == "workorder")
+  {
+    qint64 entityId = item->data(Qt::UserRole + 2).toLongLong();
+    // 先导航到工单页面，再弹出详情对话框
+    switchPage(QStringLiteral("301"));
+    if (entityId > 0)
+      WorkOrderDetailDialog::show(this, entityId);
+  }
+  else if (type == "event")
+  {
+    qint64 entityId = item->data(Qt::UserRole + 2).toLongLong();
+    // 导航到事件页面
+    switchPage(QStringLiteral("401"));
+    Q_UNUSED(entityId);
   }
 }
 
@@ -754,8 +1096,8 @@ void MainWindow::updateBreadcrumb(const QString &module, const QString &page)
   // "首页" 项：可点击跳转到工作台
   auto *homeLabel = new QLabel(QStringLiteral("首页"), m_breadcrumbContainer);
   homeLabel->setStyleSheet(
-      "QLabel { color: #64748b; font-size: 13px; background: transparent; padding: 2px 4px; }"
-      "QLabel:hover { color: #64748b; text-decoration: underline; }");
+      "QLabel { color: #6B6B6B; font-size: 13px; background: transparent; padding: 2px 4px; }"
+      "QLabel:hover { color: #92400E; text-decoration: underline; }");
   homeLabel->setCursor(Qt::PointingHandCursor);
   homeLabel->installEventFilter(this);
   homeLabel->setProperty("breadcrumbTarget", QStringLiteral("1"));
@@ -765,18 +1107,19 @@ void MainWindow::updateBreadcrumb(const QString &module, const QString &page)
   if (!module.isEmpty())
   {
     // 分隔符
-    auto *sep1 = new QLabel(QStringLiteral(" > "), m_breadcrumbContainer);
-    sep1->setStyleSheet("color: #cbd5e1; font-size: 13px; background: transparent;");
+    auto *sep1 = new QLabel(QStringLiteral("/"), m_breadcrumbContainer);
+    sep1->setStyleSheet("color: #D4D0C8; font-size: 13px; background: transparent;");
     m_breadcrumbLayout->addWidget(sep1);
 
     // 模块名（可点击跳转到该模块第一个子页面）
     auto *moduleLabel = new QLabel(module, m_breadcrumbContainer);
     moduleLabel->setStyleSheet(
-        "QLabel { color: #64748b; font-size: 13px; background: transparent; padding: 2px 4px; }"
-        "QLabel:hover { color: #64748b; text-decoration: underline; }");
+        "QLabel { color: #6B6B6B; font-size: 13px; background: transparent; padding: 2px 4px; }"
+        "QLabel:hover { color: #92400E; text-decoration: underline; }");
     moduleLabel->setCursor(Qt::PointingHandCursor);
     // 查找模块对应的第一个子页面 key
     static const QMap<QString, QString> moduleFirstPage = {
+        {QStringLiteral("工作台"), QStringLiteral("1")},
         {QStringLiteral("基础档案"), QStringLiteral("201")},
         {QStringLiteral("小区管理"), QStringLiteral("301")},
         {QStringLiteral("社区治理"), QStringLiteral("401")},
@@ -793,13 +1136,13 @@ void MainWindow::updateBreadcrumb(const QString &module, const QString &page)
   }
 
   // 分隔符 + 当前页面（不可点击，加粗）
-  auto *sep2 = new QLabel(QStringLiteral(" > "), m_breadcrumbContainer);
-  sep2->setStyleSheet("color: #cbd5e1; font-size: 13px; background: transparent;");
+  auto *sep2 = new QLabel(QStringLiteral("/"), m_breadcrumbContainer);
+  sep2->setStyleSheet("color: #D4D0C8; font-size: 13px; background: transparent;");
   m_breadcrumbLayout->addWidget(sep2);
 
   auto *pageLabel = new QLabel(page, m_breadcrumbContainer);
   pageLabel->setStyleSheet(
-      "QLabel { color: #0f172a; font-size: 13px; font-weight: 600; background: transparent; padding: 2px 4px; }");
+      "QLabel { color: #141413; font-size: 13px; font-weight: 600; background: transparent; padding: 2px 4px; }");
   m_breadcrumbLayout->addWidget(pageLabel);
 
   m_breadcrumbLayout->addStretch();
@@ -873,94 +1216,13 @@ BasePage *MainWindow::getOrCreatePage(const QString &key)
 
   BasePage *page = nullptr;
 
-  // Dashboard
-  if (key == "1")
+  // 从统一页面注册表查找创建函数
+  auto &reg = pageRegistry();
+  auto it = reg.constFind(key);
+  if (it != reg.constEnd() && it->creator)
   {
-    page = PageFactory::createDashboardPage();
+    page = it->creator();
   }
-  // Todo & Message center
-  else if (key == "102")
-    page = PageFactory::createTodoPage();
-  else if (key == "103")
-    page = PageFactory::createMessagePage();
-  // Archive pages
-  else if (key == "201")
-    page = PageFactory::createArchivePage("org");
-  else if (key == "202")
-    page = PageFactory::createArchivePage("estate");
-  else if (key == "203")
-    page = PageFactory::createArchivePage("house");
-  else if (key == "204")
-    page = PageFactory::createArchivePage("resident");
-  else if (key == "205")
-    page = PageFactory::createArchivePage("vehicle");
-  else if (key == "206")
-    page = PageFactory::createArchivePage("facility");
-  else if (key == "207")
-    page = PageFactory::createArchivePage("grid");
-  else if (key == "208")
-    page = PageFactory::createArchivePage("special");
-  // Property pages
-  else if (key == "301")
-    page = PageFactory::createPropertyPage("workorder");
-  else if (key == "302")
-    page = PageFactory::createPropertyPage("complaint");
-  else if (key == "303")
-    page = PageFactory::createPropertyPage("inspection");
-  else if (key == "304")
-    page = PageFactory::createPropertyPage("announcement");
-  else if (key == "305")
-    page = PageFactory::createPropertyPage("visitor");
-  else if (key == "306")
-    page = PageFactory::createPropertyPage("topic");
-  else if (key == "307")
-    page = PageFactory::createPropertyPage("parking");
-  else if (key == "308")
-    page = PageFactory::createPropertyPage("billing");
-  else if (key == "309")
-    page = PageFactory::createPropertyPage("income");
-  // Governance pages
-  else if (key == "401")
-    page = PageFactory::createGovernancePage("event");
-  else if (key == "402")
-    page = PageFactory::createGovernancePage("inspection");
-  else if (key == "403")
-    page = PageFactory::createGovernancePage("care");
-  else if (key == "404")
-    page = PageFactory::createGovernancePage("supervision");
-  else if (key == "405")
-    page = PageFactory::createGovernancePage("opinion");
-  else if (key == "406")
-    page = PageFactory::createGovernancePage("assessment");
-  // Service pages
-  else if (key == "501")
-    page = PageFactory::createServicePage("volunteer");
-  else if (key == "502")
-    page = PageFactory::createServicePage("convenience");
-  else if (key == "503")
-    page = PageFactory::createServicePage("job");
-  // Report pages
-  else if (key == "601")
-    page = PageFactory::createReportPage("workorder");
-  else if (key == "602")
-    page = PageFactory::createReportPage("event");
-  else if (key == "603")
-    page = PageFactory::createReportPage("service");
-  else if (key == "604")
-    page = PageFactory::createReportPage("dashboard");
-  // System pages
-  else if (key == "701")
-    page = PageFactory::createSystemPage("user");
-  else if (key == "702")
-    page = PageFactory::createSystemPage("role");
-  else if (key == "703")
-    page = PageFactory::createSystemPage("menu");
-  else if (key == "704")
-    page = PageFactory::createSystemPage("dict");
-  else if (key == "705")
-    page = PageFactory::createSystemPage("log");
-  else if (key == "706")
-    page = PageFactory::createSystemPage("ai");
 
   // Fallback: 功能开发中占位页面（非 BasePage，直接 QWidget）
   if (!page)
@@ -970,7 +1232,7 @@ BasePage *MainWindow::getOrCreatePage(const QString &key)
     placeholderLayout->setContentsMargins(20, 20, 20, 20);
     placeholderLayout->addStretch();
     auto *placeholderLabel = new QLabel(QStringLiteral("功能开发中，敬请期待..."), placeholder);
-    placeholderLabel->setStyleSheet("font-size: 18px; color: #64748b; background: transparent;");
+    placeholderLabel->setStyleSheet("font-size: 18px; color: #6B6B6B; background: transparent;");
     placeholderLabel->setAlignment(Qt::AlignCenter);
     placeholderLayout->addWidget(placeholderLabel);
     placeholderLayout->addStretch();

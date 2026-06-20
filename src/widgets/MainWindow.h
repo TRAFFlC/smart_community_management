@@ -35,8 +35,10 @@ signals:
 
 private:
     void setupUI();
-    void buildSidebar();
-    QWidget* createSidebarItem(const QString& icon, const QString& text, const QString& key, bool isHeader = false);
+    void buildIconRail();
+    void buildSectionPanel(const QString& moduleKey);
+    QWidget* createSectionItem(const QString& text, const QString& key);
+    void switchModule(const QString& moduleKey);
     void switchPage(const QString& key);
     void updateUserInfo();
     BasePage* getOrCreatePage(const QString& key);
@@ -44,19 +46,21 @@ private:
     // 通知发送（页面通过 sendNotificationRequested 信号触发）
     void sendNotification(int userId, const QString& title, const QString& content, int type, const QString& bizType = QString(), int bizId = 0);
 
-    // UI
-    QWidget* m_sidebar = nullptr;
+    // UI — 双栏导航：Icon Rail (64px) + Section Panel (220px)
+    QWidget* m_iconRail = nullptr;
+    QWidget* m_sectionPanel = nullptr;
+    QLabel* m_sectionTitle = nullptr;
+    QVBoxLayout* m_sectionLayout = nullptr;
+    QMap<QString, QToolButton*> m_iconRailItems;   // 一级模块图标
+    QMap<QString, QWidget*> m_sectionItems;        // 二级面板项（key=pageKey）
+    QToolButton* m_activeIconRailItem = nullptr;
+    QPushButton* m_activeSectionItem = nullptr;
+    QString m_currentModule;                        // 当前一级模块名
+
     QStackedWidget* m_contentStack = nullptr;
     QWidget* m_topBar = nullptr;
-    QLabel* m_userInfoLabel = nullptr;
-    QLabel* m_roleInfoLabel = nullptr;
-    QLabel* m_breadcrumbLabel = nullptr;
     QString m_currentPage;
     QMap<QString, QWidget*> m_pageCache;
-    QMap<QString, QWidget*> m_sidebarItems;
-    QWidget* m_activeSidebarItem = nullptr;
-    QList<QPushButton*> m_groupHeaders;
-    QList<QWidget*> m_groupContainers;
 
     // 顶栏改造：通知角标、面包屑、刷新按钮
     QToolButton* m_notifyBtn = nullptr;

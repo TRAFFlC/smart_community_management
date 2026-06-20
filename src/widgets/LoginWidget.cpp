@@ -132,8 +132,12 @@ void LoginWidget::setupUI() {
 
     m_usernameEdit = new QLineEdit(formPanel);
     m_usernameEdit->setPlaceholderText(QStringLiteral("请输入账号"));
-    // [开发阶段] 硬编码默认凭据，便于测试登录。正式发布前移除，参见 .trae/rules/project_rules.md §硬编码凭据
-    m_usernameEdit->setText(QStringLiteral("admin"));
+    // [安全] 开发阶段可通过环境变量 DEV_USER / DEV_PASS 填充默认值
+#ifdef QT_DEBUG
+    m_usernameEdit->setText(qEnvironmentVariable("DEV_USER", "admin"));
+#else
+    // 正式发布时不预填任何凭据
+#endif
     m_usernameEdit->setFixedHeight(46);
     m_usernameEdit->setStyleSheet(R"(
         QLineEdit {
@@ -154,8 +158,12 @@ void LoginWidget::setupUI() {
 
     m_passwordEdit = new QLineEdit(formPanel);
     m_passwordEdit->setPlaceholderText(QStringLiteral("请输入密码"));
-    // [开发阶段] 硬编码默认凭据，便于测试登录。正式发布前移除，参见 .trae/rules/project_rules.md §硬编码凭据
-    m_passwordEdit->setText(QStringLiteral("admin123"));
+    // [安全] 开发阶段可通过环境变量 DEV_PASS 填充默认值
+#ifdef QT_DEBUG
+    m_passwordEdit->setText(qEnvironmentVariable("DEV_PASS", "admin123"));
+#else
+    // 正式发布时不预填任何凭据
+#endif
     m_passwordEdit->setEchoMode(QLineEdit::Password);
     m_passwordEdit->setFixedHeight(46);
     m_passwordEdit->setStyleSheet(R"(

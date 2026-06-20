@@ -42,6 +42,7 @@ struct SysUser : BaseEntity {
     QList<int> orgIds;
     QStringList roleNames;
     QStringList permissions;
+    QString roleDomain;  // 当前用户的主角色域(resident/property/governance/service/supervision/platform)
 };
 
 struct SysRole : BaseEntity {
@@ -150,27 +151,27 @@ struct CmEstate : BaseEntity {
 
     static CmEstate fromQuery(QSqlQuery& q) {
         CmEstate e;
-        e.id = q.value(0).toLongLong();
-        e.orgId = q.value(1).toLongLong();
-        e.propertyCompanyId = q.value(2).toLongLong();
-        e.estateName = q.value(3).toString();
-        e.estateCode = q.value(4).toString();
-        e.address = q.value(5).toString();
-        e.totalArea = q.value(6).toDouble();
-        e.totalBuildings = q.value(7).toInt();
-        e.totalHouses = q.value(8).toInt();
-        e.builtYear = q.value(9).toInt();
-        e.greenRate = q.value(10).toDouble();
-        e.parkingSpaces = q.value(11).toInt();
-        e.longitude = q.value(12).toDouble();
-        e.latitude = q.value(13).toDouble();
-        e.status = q.value(14).toInt();
-        e.createBy = q.value(15).toLongLong();
-        e.createTime = q.value(16).toDateTime();
-        e.updateBy = q.value(17).toLongLong();
-        e.updateTime = q.value(18).toDateTime();
-        e.delFlag = q.value(19).toInt();
-        e.remark = q.value(20).toString();
+        e.id = q.value("id").toLongLong();
+        e.orgId = q.value("org_id").toLongLong();
+        e.propertyCompanyId = q.value("property_company_id").toLongLong();
+        e.estateName = q.value("estate_name").toString();
+        e.estateCode = q.value("estate_code").toString();
+        e.address = q.value("address").toString();
+        e.totalArea = q.value("total_area").toDouble();
+        e.totalBuildings = q.value("total_buildings").toInt();
+        e.totalHouses = q.value("total_houses").toInt();
+        e.builtYear = q.value("built_year").toInt();
+        e.greenRate = q.value("green_rate").toDouble();
+        e.parkingSpaces = q.value("parking_spaces").toInt();
+        e.longitude = q.value("longitude").toDouble();
+        e.latitude = q.value("latitude").toDouble();
+        e.status = q.value("status").toInt();
+        e.createBy = q.value("create_by").toLongLong();
+        e.createTime = q.value("create_time").toDateTime();
+        e.updateBy = q.value("update_by").toLongLong();
+        e.updateTime = q.value("update_time").toDateTime();
+        e.delFlag = q.value("del_flag").toInt();
+        e.remark = q.value("remark").toString();
         return e;
     }
 
@@ -229,23 +230,23 @@ struct CmHouse : BaseEntity {
 
     static CmHouse fromQuery(QSqlQuery& q) {
         CmHouse h;
-        h.id = q.value(0).toLongLong();
-        h.unitId = q.value(1).toLongLong();
-        h.estateId = q.value(2).toLongLong();
-        h.houseCode = q.value(3).toString();
-        h.floor = q.value(4).toInt();
-        h.roomNumber = q.value(5).toString();
-        h.area = q.value(6).toDouble();
-        h.houseType = q.value(7).toString();
-        h.houseStatus = q.value(8).toInt();
-        h.ownerName = q.value(9).toString();
-        h.ownerPhone = q.value(10).toString();
-        h.createBy = q.value(11).toLongLong();
-        h.createTime = q.value(12).toDateTime();
-        h.updateBy = q.value(13).toLongLong();
-        h.updateTime = q.value(14).toDateTime();
-        h.delFlag = q.value(15).toInt();
-        h.remark = q.value(16).toString();
+        h.id = q.value("id").toLongLong();
+        h.unitId = q.value("unit_id").toLongLong();
+        h.estateId = q.value("estate_id").toLongLong();
+        h.houseCode = q.value("house_code").toString();
+        h.floor = q.value("floor").toInt();
+        h.roomNumber = q.value("room_number").toString();
+        h.area = q.value("area").toDouble();
+        h.houseType = q.value("house_type").toString();
+        h.houseStatus = q.value("house_status").toInt();
+        h.ownerName = q.value("owner_name").toString();
+        h.ownerPhone = q.value("owner_phone").toString();
+        h.createBy = q.value("create_by").toLongLong();
+        h.createTime = q.value("create_time").toDateTime();
+        h.updateBy = q.value("update_by").toLongLong();
+        h.updateTime = q.value("update_time").toDateTime();
+        h.delFlag = q.value("del_flag").toInt();
+        h.remark = q.value("remark").toString();
         return h;
     }
 
@@ -291,30 +292,30 @@ struct CmResident : BaseEntity {
 
     static CmResident fromQuery(QSqlQuery& q) {
         CmResident r;
-        r.id = q.value(0).toLongLong();
-        r.userId = q.value(1).toLongLong();
-        r.name = q.value(2).toString();
-        r.idCard = q.value(3).toString();
-        r.gender = q.value(4).toInt();
-        r.phone = q.value(5).toString();
-        r.phoneDisplay = q.value(6).toString();
-        r.birthday = q.value(7).toDate();
-        r.photo = q.value(8).toString();
-        r.nationality = q.value(9).toString();
-        r.education = q.value(10).toString();
-        r.occupation = q.value(11).toString();
-        r.politicalStatus = q.value(12).toString();
-        r.isSpecial = q.value(13).toInt();
-        r.specialType = q.value(14).toString();
-        r.emergencyContact = q.value(15).toString();
-        r.emergencyPhone = q.value(16).toString();
-        r.status = q.value(17).toInt();
-        r.createBy = q.value(18).toLongLong();
-        r.createTime = q.value(19).toDateTime();
-        r.updateBy = q.value(20).toLongLong();
-        r.updateTime = q.value(21).toDateTime();
-        r.delFlag = q.value(22).toInt();
-        r.remark = q.value(23).toString();
+        r.id = q.value("id").toLongLong();
+        r.userId = q.value("user_id").toLongLong();
+        r.name = q.value("name").toString();
+        r.idCard = q.value("id_card").toString();
+        r.gender = q.value("gender").toInt();
+        r.phone = q.value("phone").toString();
+        r.phoneDisplay = q.value("phone_display").toString();
+        r.birthday = q.value("birthday").toDate();
+        r.photo = q.value("photo").toString();
+        r.nationality = q.value("nationality").toString();
+        r.education = q.value("education").toString();
+        r.occupation = q.value("occupation").toString();
+        r.politicalStatus = q.value("political_status").toString();
+        r.isSpecial = q.value("is_special").toInt();
+        r.specialType = q.value("special_type").toString();
+        r.emergencyContact = q.value("emergency_contact").toString();
+        r.emergencyPhone = q.value("emergency_phone").toString();
+        r.status = q.value("status").toInt();
+        r.createBy = q.value("create_by").toLongLong();
+        r.createTime = q.value("create_time").toDateTime();
+        r.updateBy = q.value("update_by").toLongLong();
+        r.updateTime = q.value("update_time").toDateTime();
+        r.delFlag = q.value("del_flag").toInt();
+        r.remark = q.value("remark").toString();
         return r;
     }
 
@@ -478,38 +479,38 @@ struct WoWorkOrder : BaseEntity {
 
     static WoWorkOrder fromQuery(QSqlQuery& q) {
         WoWorkOrder o;
-        o.id = q.value(0).toLongLong();
-        o.orderNo = q.value(1).toString();
-        o.estateId = q.value(2).toLongLong();
-        o.houseId = q.value(3).toLongLong();
-        o.reporterId = q.value(4).toLongLong();
-        o.reporterName = q.value(5).toString();
-        o.reporterPhone = q.value(6).toString();
-        o.orderType = q.value(7).toInt();
-        o.priority = q.value(8).toInt();
-        o.title = q.value(9).toString();
-        o.description = q.value(10).toString();
-        o.locationDesc = q.value(11).toString();
-        o.images = q.value(12).toString();
-        o.status = q.value(13).toInt();
-        o.acceptBy = q.value(14).toLongLong();
-        o.acceptTime = q.value(15).toDateTime();
-        o.assignTo = q.value(16).toLongLong();
-        o.assignTime = q.value(17).toDateTime();
-        o.finishTime = q.value(18).toDateTime();
-        o.closeTime = q.value(19).toDateTime();
-        o.resultDesc = q.value(20).toString();
-        o.resultImages = q.value(21).toString();
-        o.slaDeadline = q.value(22).toDateTime();
-        o.isEscalated = q.value(23).toInt();
-        o.escalateToEventId = q.value(24).toLongLong();
-        o.source = q.value(25).toInt();
-        o.createBy = q.value(26).toLongLong();
-        o.createTime = q.value(27).toDateTime();
-        o.updateBy = q.value(28).toLongLong();
-        o.updateTime = q.value(29).toDateTime();
-        o.delFlag = q.value(30).toInt();
-        o.remark = q.value(31).toString();
+        o.id = q.value("id").toLongLong();
+        o.orderNo = q.value("order_no").toString();
+        o.estateId = q.value("estate_id").toLongLong();
+        o.houseId = q.value("house_id").toLongLong();
+        o.reporterId = q.value("reporter_id").toLongLong();
+        o.reporterName = q.value("reporter_name").toString();
+        o.reporterPhone = q.value("reporter_phone").toString();
+        o.orderType = q.value("order_type").toInt();
+        o.priority = q.value("priority").toInt();
+        o.title = q.value("title").toString();
+        o.description = q.value("description").toString();
+        o.locationDesc = q.value("location_desc").toString();
+        o.images = q.value("images").toString();
+        o.status = q.value("status").toInt();
+        o.acceptBy = q.value("accept_by").toLongLong();
+        o.acceptTime = q.value("accept_time").toDateTime();
+        o.assignTo = q.value("assign_to").toLongLong();
+        o.assignTime = q.value("assign_time").toDateTime();
+        o.finishTime = q.value("finish_time").toDateTime();
+        o.closeTime = q.value("close_time").toDateTime();
+        o.resultDesc = q.value("result_desc").toString();
+        o.resultImages = q.value("result_images").toString();
+        o.slaDeadline = q.value("sla_deadline").toDateTime();
+        o.isEscalated = q.value("is_escalated").toInt();
+        o.escalateToEventId = q.value("escalate_to_event_id").toLongLong();
+        o.source = q.value("source").toInt();
+        o.createBy = q.value("create_by").toLongLong();
+        o.createTime = q.value("create_time").toDateTime();
+        o.updateBy = q.value("update_by").toLongLong();
+        o.updateTime = q.value("update_time").toDateTime();
+        o.delFlag = q.value("del_flag").toInt();
+        o.remark = q.value("remark").toString();
         return o;
     }
 
@@ -582,40 +583,40 @@ struct GeEvent : BaseEntity {
 
     static GeEvent fromQuery(QSqlQuery& q) {
         GeEvent e;
-        e.id = q.value(0).toLongLong();
-        e.eventNo = q.value(1).toString();
-        e.gridId = q.value(2).toLongLong();
-        e.communityOrgId = q.value(3).toLongLong();
-        e.reporterId = q.value(4).toLongLong();
-        e.reporterName = q.value(5).toString();
-        e.eventCategory = q.value(6).toInt();
-        e.priority = q.value(7).toInt();
-        e.title = q.value(8).toString();
-        e.description = q.value(9).toString();
-        e.location = q.value(10).toString();
-        e.longitude = q.value(11).toDouble();
-        e.latitude = q.value(12).toDouble();
-        e.images = q.value(13).toString();
-        e.status = q.value(14).toInt();
-        e.reviewerId = q.value(15).toLongLong();
-        e.reviewTime = q.value(16).toDateTime();
-        e.assignTo = q.value(17).toLongLong();
-        e.assignOrgId = q.value(18).toLongLong();
-        e.assignTime = q.value(19).toDateTime();
-        e.finishTime = q.value(20).toDateTime();
-        e.archiveTime = q.value(21).toDateTime();
-        e.resultDesc = q.value(22).toString();
-        e.resultImages = q.value(23).toString();
-        e.slaDeadline = q.value(24).toDateTime();
-        e.isSupervised = q.value(25).toInt();
-        e.isCoordinated = q.value(26).toInt();
-        e.source = q.value(27).toInt();
-        e.createBy = q.value(28).toLongLong();
-        e.createTime = q.value(29).toDateTime();
-        e.updateBy = q.value(30).toLongLong();
-        e.updateTime = q.value(31).toDateTime();
-        e.delFlag = q.value(32).toInt();
-        e.remark = q.value(33).toString();
+        e.id = q.value("id").toLongLong();
+        e.eventNo = q.value("event_no").toString();
+        e.gridId = q.value("grid_id").toLongLong();
+        e.communityOrgId = q.value("community_org_id").toLongLong();
+        e.reporterId = q.value("reporter_id").toLongLong();
+        e.reporterName = q.value("reporter_name").toString();
+        e.eventCategory = q.value("event_category").toInt();
+        e.priority = q.value("priority").toInt();
+        e.title = q.value("title").toString();
+        e.description = q.value("description").toString();
+        e.location = q.value("location").toString();
+        e.longitude = q.value("longitude").toDouble();
+        e.latitude = q.value("latitude").toDouble();
+        e.images = q.value("images").toString();
+        e.status = q.value("status").toInt();
+        e.reviewerId = q.value("reviewer_id").toLongLong();
+        e.reviewTime = q.value("review_time").toDateTime();
+        e.assignTo = q.value("assign_to").toLongLong();
+        e.assignOrgId = q.value("assign_org_id").toLongLong();
+        e.assignTime = q.value("assign_time").toDateTime();
+        e.finishTime = q.value("finish_time").toDateTime();
+        e.archiveTime = q.value("archive_time").toDateTime();
+        e.resultDesc = q.value("result_desc").toString();
+        e.resultImages = q.value("result_images").toString();
+        e.slaDeadline = q.value("sla_deadline").toDateTime();
+        e.isSupervised = q.value("is_supervised").toInt();
+        e.isCoordinated = q.value("is_coordinated").toInt();
+        e.source = q.value("source").toInt();
+        e.createBy = q.value("create_by").toLongLong();
+        e.createTime = q.value("create_time").toDateTime();
+        e.updateBy = q.value("update_by").toLongLong();
+        e.updateTime = q.value("update_time").toDateTime();
+        e.delFlag = q.value("del_flag").toInt();
+        e.remark = q.value("remark").toString();
         return e;
     }
 

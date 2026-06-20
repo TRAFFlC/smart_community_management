@@ -6,6 +6,7 @@
 #include <QIcon>
 #include <QStandardPaths>
 #include <QDir>
+#include <QFontDatabase>
 #include "database/DatabaseManager.h"
 #include "services/AuthService.h"
 #include "services/DemoDataService.h"
@@ -37,11 +38,26 @@ int main(int argc, char* argv[]) {
     app.setOrganizationName("SmartCommunity");
     app.setApplicationVersion("1.0.0");
 
-    // 设置全局字体
-    QFont defaultFont;
-    defaultFont.setFamily(QStringLiteral("Microsoft YaHei"));
+    // 设置全局字体 — 现代档案室设计语言
+    // 正文：Noto Sans SC（思源黑体），标题：Noto Serif SC（思源宋体），数字：等宽
+    // 优先使用系统已安装的 Noto 字体（思源字体的 Google 版本），回退到微软雅黑
+    QFontDatabase fontDb;
+    QStringList families = fontDb.families();
+    QString bodyFont = QStringLiteral("Noto Sans SC");
+    QString serifFont = QStringLiteral("Noto Serif SC");
+    if (!families.contains(bodyFont)) {
+        bodyFont = QStringLiteral("Microsoft YaHei UI");
+    }
+    if (!families.contains(serifFont)) {
+        serifFont = QStringLiteral("SimSun");
+    }
+    QFont defaultFont(bodyFont);
     defaultFont.setPointSize(10);
     app.setFont(defaultFont);
+    // 将标题字体注册到 qApp 属性，供 UiKit 取用
+    qApp->setProperty("serifFont", serifFont);
+    qApp->setProperty("bodyFont", bodyFont);
+    qDebug() << "Fonts: body=" << bodyFont << "serif=" << serifFont;
 
     // 加载全局样式表
     QFile styleFile(":/style.qss");
