@@ -1,6 +1,7 @@
 #ifndef BASEPAGE_H
 #define BASEPAGE_H
 
+#include <QMouseEvent>
 #include <QWidget>
 #include <QString>
 
@@ -22,6 +23,26 @@ public:
 
     void requestNavigate(const QString& pageKey) {
         emit navigateToRequested(pageKey);
+    }
+
+protected:
+    // 统一处理子控件 targetPage 属性的点击导航
+    // 页面中的可点击卡片/按钮设置 targetPage 属性并 installEventFilter(this) 即可
+    bool eventFilter(QObject* watched, QEvent* event) override {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
+            if (mouseEvent->button() == Qt::LeftButton) {
+                auto* w = qobject_cast<QWidget*>(watched);
+                if (w) {
+                    QString target = w->property("targetPage").toString();
+                    if (!target.isEmpty()) {
+                        emit navigateToRequested(target);
+                        return true;
+                    }
+                }
+            }
+        }
+        return QWidget::eventFilter(watched, event);
     }
 
 signals:

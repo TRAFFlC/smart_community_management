@@ -102,10 +102,10 @@ QString moduleColor(const QString& sub) {
 QWidget* createPageHeader(const QString& iconKey, const QString& title, const QString& desc, const QString& color, QWidget* parent) {
     auto* header = new QFrame(parent);
     header->setFixedHeight(72);
+    header->setFrameStyle(QFrame::NoFrame);  // 显式禁用 QFrame 默认边框，避免左上角出现意外框线
     header->setStyleSheet(QStringLiteral(
         "QFrame { background: transparent; border: none; border-bottom: 1px solid #D4D0C8; border-radius: 0; }"
-        "QLabel { background: transparent; border: none; }"
-    ));
+        "QLabel { background: transparent; border: none; }"));
     auto* hl = new QHBoxLayout(header);
     hl->setContentsMargins(0, 0, 0, 16);
     hl->setSpacing(12);

@@ -87,10 +87,9 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
     planTable->setSortingEnabled(true);
     planTable->setColumnCount(6);
     planTable->setHorizontalHeaderLabels({QStringLiteral("计划名称"), QStringLiteral("网格"), QStringLiteral("频率"), QStringLiteral("巡查员"), QStringLiteral("起止日期"), QStringLiteral("状态")});
-    auto *pb = new PaginationBar(page);
-    layout->addWidget(pb);
+    auto *planPb = new PaginationBar(planPage);
     auto *planEmptyHint = UiKit::createEmptyHintLabel(QStringLiteral("暂无计划记录"), planPage);
-    std::function<void()> loadPlans = [planTable, planSearchEdit, planStatusCombo, planEmptyHint, pb]()
+    std::function<void()> loadPlans = [planTable, planSearchEdit, planStatusCombo, planEmptyHint, planPb]()
     {
       planTable->setRowCount(0);
       QString sql = "SELECT ip.plan_name, g.grid_name, ip.frequency, u.real_name, ip.start_date || '~' || ip.end_date, ip.status FROM ge_inspection_plan ip LEFT JOIN cm_grid g ON ip.grid_id = g.id LEFT JOIN sys_user u ON ip.inspector_id = u.id WHERE ip.del_flag = 0";
@@ -109,16 +108,16 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         cntBinds << ":search" << ("%" + searchText + "%");
       if (planStsFilter >= 0)
         cntBinds << ":status" << (planStsFilter);
-      cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
+      cntBinds << ":pageSize" << planPb->pageSize() << ":offset" << planPb->offset();
+      planPb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       planQ.prepare(sql);
       if (!searchText.isEmpty())
         planQ.bindValue(":search", "%" + searchText + "%");
       if (planStsFilter >= 0)
         planQ.bindValue(":status", planStsFilter);
-      planQ.bindValue(":pageSize", pb->pageSize());
-      planQ.bindValue(":offset", pb->offset());
+      planQ.bindValue(":pageSize", planPb->pageSize());
+      planQ.bindValue(":offset", planPb->offset());
       planQ.exec();
       int pRow = 0;
       while (planQ.next())
@@ -138,7 +137,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         pRow++;
       }
       UiKit::syncEmptyHint(planTable, planEmptyHint);
-      pb->refreshData();
+      planPb->refreshData();
     };
     loadPlans();
     QObject::connect(planSearchEdit, &QLineEdit::textChanged, page, [=]()
@@ -147,6 +146,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
             { loadPlans(); });
     planLayout->addWidget(planTable);
     planLayout->addWidget(planEmptyHint);
+    planLayout->addWidget(planPb);
     tabWidget->addTab(planPage, QStringLiteral("巡查计划"));
 
     // Record tab
@@ -182,8 +182,9 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
     recTable->setSortingEnabled(true);
     recTable->setColumnCount(6);
     recTable->setHorizontalHeaderLabels({QStringLiteral("巡查员"), QStringLiteral("开始时间"), QStringLiteral("结束时间"), QStringLiteral("时长(分)"), QStringLiteral("发现问题"), QStringLiteral("状态")});
+    auto *recPb = new PaginationBar(recordPage);
     auto *recEmptyHint = UiKit::createEmptyHintLabel(QStringLiteral("暂无巡查记录"), recordPage);
-    std::function<void()> loadRecords = [recTable, recSearchEdit, recStatusCombo, recEmptyHint, pb]()
+    std::function<void()> loadRecords = [recTable, recSearchEdit, recStatusCombo, recEmptyHint, recPb]()
     {
       recTable->setRowCount(0);
       QString sql = "SELECT u.real_name, i.start_time, i.end_time, i.duration, i.issue_count, i.status FROM ge_inspection i LEFT JOIN sys_user u ON i.inspector_id = u.id WHERE i.del_flag = 0";
@@ -202,16 +203,16 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         cntBinds << ":search" << ("%" + searchText + "%");
       if (statusFilter >= 0)
         cntBinds << ":status" << (statusFilter);
-      cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
+      cntBinds << ":pageSize" << recPb->pageSize() << ":offset" << recPb->offset();
+      recPb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       recQ.prepare(sql);
       if (!searchText.isEmpty())
         recQ.bindValue(":search", "%" + searchText + "%");
       if (statusFilter >= 0)
         recQ.bindValue(":status", statusFilter);
-      recQ.bindValue(":pageSize", pb->pageSize());
-      recQ.bindValue(":offset", pb->offset());
+      recQ.bindValue(":pageSize", recPb->pageSize());
+      recQ.bindValue(":offset", recPb->offset());
       recQ.exec();
       int rRow = 0;
       while (recQ.next())
@@ -228,7 +229,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         rRow++;
       }
       UiKit::syncEmptyHint(recTable, recEmptyHint);
-      pb->refreshData();
+      recPb->refreshData();
     };
     loadRecords();
     QObject::connect(recSearchEdit, &QLineEdit::textChanged, page, [=]()
@@ -237,6 +238,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
             { loadRecords(); });
     recordLayout->addWidget(recTable);
     recordLayout->addWidget(recEmptyHint);
+    recordLayout->addWidget(recPb);
     tabWidget->addTab(recordPage, QStringLiteral("巡查记录"));
     layout->addWidget(tabWidget);
     return page;
@@ -368,10 +370,9 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
     visitTable->setHorizontalHeaderLabels({QStringLiteral("走访人"), QStringLiteral("走访时间"), QStringLiteral("类型"), QStringLiteral("发现问题"), QStringLiteral("后续跟进")});
     visitTable->setColumnWidth(3, 180);
     visitTable->setColumnWidth(4, 180);
-    auto *pb = new PaginationBar(page);
-    layout->addWidget(pb);
+    auto *visitPb = new PaginationBar(visitPage);
     auto *visitEmptyHint = UiKit::createEmptyHintLabel(QStringLiteral("暂无走访记录"), visitPage);
-    std::function<void()> loadVisits = [visitTable, visSearchEdit, visitTypeCombo, visitEmptyHint, pb]()
+    std::function<void()> loadVisits = [visitTable, visSearchEdit, visitTypeCombo, visitEmptyHint, visitPb]()
     {
       visitTable->setRowCount(0);
       QString sql = "SELECT u.real_name, vr.visit_time, vr.visit_type, vr.found_issues, vr.follow_up FROM ge_visit_record vr LEFT JOIN sys_user u ON vr.visitor_id = u.id WHERE vr.del_flag = 0";
@@ -390,16 +391,16 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         cntBinds << ":search" << ("%" + searchText + "%");
       if (visitTypeFilter >= 0)
         cntBinds << ":vtype" << (visitTypeFilter);
-      cntBinds << ":pageSize" << pb->pageSize() << ":offset" << pb->offset();
-      pb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
+      cntBinds << ":pageSize" << visitPb->pageSize() << ":offset" << visitPb->offset();
+      visitPb->setTotalCount(UiKit::executeCountQuery(sql, cntBinds));
 
       visQ.prepare(sql);
       if (!searchText.isEmpty())
         visQ.bindValue(":search", "%" + searchText + "%");
       if (visitTypeFilter >= 0)
         visQ.bindValue(":vtype", visitTypeFilter);
-      visQ.bindValue(":pageSize", pb->pageSize());
-      visQ.bindValue(":offset", pb->offset());
+      visQ.bindValue(":pageSize", visitPb->pageSize());
+      visQ.bindValue(":offset", visitPb->offset());
       visQ.exec();
       int vRow = 0;
       while (visQ.next())
@@ -414,7 +415,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
         vRow++;
       }
       UiKit::syncEmptyHint(visitTable, visitEmptyHint);
-      pb->refreshData();
+      visitPb->refreshData();
     };
     loadVisits();
     QObject::connect(visSearchEdit, &QLineEdit::textChanged, page, [=]()
@@ -423,6 +424,7 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
             { loadVisits(); });
     visitLayout->addWidget(visitTable);
     visitLayout->addWidget(visitEmptyHint);
+    visitLayout->addWidget(visitPb);
     tabWidget->addTab(visitPage, QStringLiteral("走访记录"));
     layout->addWidget(tabWidget);
     return page;
