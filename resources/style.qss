@@ -439,6 +439,7 @@ QTabBar::tab {
     margin-right: 0;
     font-size: 14px;
     font-weight: 500;
+    outline: none;
 }
 QTabBar::tab:hover {
     color: #141413;
@@ -447,6 +448,10 @@ QTabBar::tab:selected {
     color: #141413;
     border-bottom: 2px solid #92400E;
     font-weight: 600;
+}
+QTabBar::tab:focus {
+    border: none;
+    outline: none;
 }
 
 /* ---- 树形控件 ---- */

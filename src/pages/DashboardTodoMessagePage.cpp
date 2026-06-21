@@ -182,33 +182,33 @@ BasePage *PageFactory::createDashboardPage()
           {QStringLiteral("投诉建议"), QStringLiteral("ic_chat"), "302"},
           {QStringLiteral("公告通知"), QStringLiteral("ic_announce"), "304"},
           {QStringLiteral("志愿服务"), QStringLiteral("ic_people"), "501"},
-          {QStringLiteral("便民服务"), QStringLiteral("ic_shop"), "504"},
+          {QStringLiteral("便民服务"), QStringLiteral("ic_shop"), "502"},
       };
   } else if (roleDomain == QStringLiteral("property")) {
       actions = {
           {QStringLiteral("报事报修"), QStringLiteral("ic_tool"), "301"},
           {QStringLiteral("投诉建议"), QStringLiteral("ic_chat"), "302"},
           {QStringLiteral("公告通知"), QStringLiteral("ic_announce"), "304"},
-          {QStringLiteral("停车管理"), QStringLiteral("ic_car"), "309"},
+          {QStringLiteral("停车管理"), QStringLiteral("ic_car"), "307"},
           {QStringLiteral("物业缴费"), QStringLiteral("ic_money"), "308"},
-          {QStringLiteral("巡检管理"), QStringLiteral("ic_inspect"), "310"},
+          {QStringLiteral("巡检管理"), QStringLiteral("ic_inspect"), "303"},
       };
   } else if (roleDomain == QStringLiteral("governance")) {
       actions = {
           {QStringLiteral("网格事件"), QStringLiteral("ic_route"), "401"},
-          {QStringLiteral("民意收集"), QStringLiteral("ic_chat"), "411"},
-          {QStringLiteral("重点人群关怀"), QStringLiteral("ic_heart"), "410"},
-          {QStringLiteral("督办管理"), QStringLiteral("ic_flag"), "407"},
-          {QStringLiteral("绩效考核"), QStringLiteral("ic_chart"), "1001"},
-          {QStringLiteral("社区巡查"), QStringLiteral("ic_inspect"), "413"},
+          {QStringLiteral("民意收集"), QStringLiteral("ic_chat"), "405"},
+          {QStringLiteral("重点人群关怀"), QStringLiteral("ic_heart"), "403"},
+          {QStringLiteral("督办管理"), QStringLiteral("ic_flag"), "404"},
+          {QStringLiteral("绩效考核"), QStringLiteral("ic_chart"), "406"},
+          {QStringLiteral("社区巡查"), QStringLiteral("ic_inspect"), "402"},
       };
   } else {
       actions = {
-          {QStringLiteral("用户管理"), QStringLiteral("ic_people"), "903"},
-          {QStringLiteral("角色管理"), QStringLiteral("ic_lock"), "904"},
-          {QStringLiteral("菜单管理"), QStringLiteral("ic_list"), "905"},
-          {QStringLiteral("字典管理"), QStringLiteral("ic_table"), "906"},
-          {QStringLiteral("操作日志"), QStringLiteral("ic_log"), "909"},
+          {QStringLiteral("用户管理"), QStringLiteral("ic_people"), "701"},
+          {QStringLiteral("角色管理"), QStringLiteral("ic_lock"), "702"},
+          {QStringLiteral("菜单管理"), QStringLiteral("ic_list"), "703"},
+          {QStringLiteral("字典管理"), QStringLiteral("ic_table"), "704"},
+          {QStringLiteral("操作日志"), QStringLiteral("ic_log"), "705"},
           {QStringLiteral("公告通知"), QStringLiteral("ic_announce"), "304"},
       };
   }
@@ -913,9 +913,11 @@ BasePage *PageFactory::createMessagePage()
         typeTag->setStyleSheet("background:#fef3c7;color:#b45309;padding:2px 10px;border-radius:3px;font-size:12px;");
         detailLayout->addWidget(typeTag);
 
-        // 标题
+        // 标题：加大字号、加粗字重，确保低 DPI 屏幕清晰可读
         auto* titleLabel = new QLabel(title, &detailDlg);
-        titleLabel->setStyleSheet("font-size:18px;font-weight:600;color:#0f172a;");
+        titleLabel->setStyleSheet(
+            "font-size:20px;font-weight:700;color:#141413;"
+            "font-family:'Noto Sans SC','Source Han Sans SC','Microsoft YaHei UI',sans-serif;");
         titleLabel->setWordWrap(true);
         detailLayout->addWidget(titleLabel);
 

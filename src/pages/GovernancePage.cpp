@@ -51,6 +51,8 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
 
     // Tab for plan and record
     auto *tabWidget = new QTabWidget(page);
+    tabWidget->setDocumentMode(true);
+    tabWidget->setFocusPolicy(Qt::NoFocus);
     tabWidget->setStyleSheet("QTabBar::tab { min-width: 100px; padding: 8px 16px; }");
 
     // Plan tab
@@ -250,6 +252,8 @@ BasePage *PageFactory::createGovernancePage(const QString &sub)
     layout->addSpacing(12);
 
     auto *tabWidget = new QTabWidget(page);
+    tabWidget->setDocumentMode(true);
+    tabWidget->setFocusPolicy(Qt::NoFocus);
     tabWidget->setStyleSheet("QTabBar::tab { min-width: 100px; padding: 8px 16px; }");
 
     // Group tab

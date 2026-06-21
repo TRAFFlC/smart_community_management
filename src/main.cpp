@@ -53,8 +53,9 @@ int main(int argc, char* argv[]) {
     }
     QFont defaultFont(bodyFont);
     defaultFont.setPointSize(10);
-    // 改善可变字体在 Windows 低 DPI 屏幕上的渲染：优先抗锯齿
-    defaultFont.setStyleStrategy(QFont::PreferAntialias);
+    defaultFont.setWeight(QFont::Medium);  // 中等字重，避免细笔画在屏幕上过细
+    // 改善可变字体在 Windows 低 DPI 屏幕上的渲染：优先抗锯齿 + 质量优先
+    defaultFont.setStyleStrategy(QFont::PreferQuality);
     app.setFont(defaultFont);
     // 将标题字体注册到 qApp 属性，供 UiKit 取用
     qApp->setProperty("serifFont", serifFont);
