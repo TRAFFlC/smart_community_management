@@ -12,86 +12,27 @@
 
 namespace Utils {
 
-namespace {
-    // 进程内自增序列号，保证同一毫秒内生成的编号不会重复
-    inline int nextSequenceNumber() {
-        static QAtomicInt counter(0);
-        return counter.fetchAndAddRelaxed(1) + 1;
-    }
-}
+// 进程内自增序列号，保证同一毫秒内生成的编号不会重复
+int nextSequenceNumber();
 
 // 密码哈希：PBKDF2-SHA512 + 16字节随机盐，10000轮迭代
 // 返回格式: salt:hash (均为十六进制字符串)
 // 旧版使用裸 SHA256 + 固定盐，verifyPassword 保留向后兼容
-inline QString hashPassword(const QString& password) {
-    // 生成 16 字节随机盐
-    QByteArray salt(16, '\0');
-    for (int i = 0; i < 16; ++i) {
-        salt[i] = static_cast<char>(QRandomGenerator::global()->bounded(256));
-    }
-    // PBKDF2-SHA512，10000 轮迭代，输出 64 字节
-    QByteArray hash = QPasswordDigestor::deriveKeyPbkdf2(
-        QCryptographicHash::Sha512,
-        password.toUtf8(),
-        salt,
-        10000,
-        64
-    );
-    return salt.toHex() + ":" + hash.toHex();
-}
+QString hashPassword(const QString& password);
 
 // 密码校验：兼容新旧两种格式
 // - 新格式 (含 ':'): salt:hash，使用 PBKDF2-SHA512 重新计算比对
 // - 旧格式 (不含 ':'): 裸 SHA256 + 固定盐，确保已有数据库用户可登录
-inline bool verifyPassword(const QString& password, const QString& hashed) {
-    // 兼容旧格式（无冒号 = 旧 SHA256 + 固定盐）
-    if (!hashed.contains(':')) {
-        QByteArray oldHash = QCryptographicHash::hash(
-            (password + "smart_community_salt").toUtf8(),
-            QCryptographicHash::Sha256
-        );
-        return oldHash.toHex() == hashed;
-    }
-    // 新格式：salt:hash
-    int sep = hashed.indexOf(':');
-    QByteArray salt = QByteArray::fromHex(hashed.left(sep).toUtf8());
-    QByteArray storedHash = QByteArray::fromHex(hashed.mid(sep + 1).toUtf8());
-    QByteArray newHash = QPasswordDigestor::deriveKeyPbkdf2(
-        QCryptographicHash::Sha512,
-        password.toUtf8(),
-        salt,
-        10000,
-        64
-    );
-    return newHash == storedHash;
-}
+bool verifyPassword(const QString& password, const QString& hashed);
 
-// 生成工单编号: WO + yyyyMMddHHmmsszzz + 6位随机数 + 4位自增序列号
-inline QString generateOrderNo() {
-    QString prefix = "WO";
-    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMddHHmmsszzz");
-    int rand = QRandomGenerator::global()->bounded(100000, 1000000);
-    int seq = nextSequenceNumber();
-    return prefix + timestamp + QString::number(rand) + QString("%1").arg(seq, 4, 10, QChar('0'));
-}
+// 生成工单编号: WO + yyyyMMdd + 6位自增序列号（简洁、可排序、UNIQUE 约束兜底）
+QString generateOrderNo();
 
-// 生成事件编号: GE + yyyyMMddHHmmsszzz + 6位随机数 + 4位自增序列号
-inline QString generateEventNo() {
-    QString prefix = "GE";
-    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMddHHmmsszzz");
-    int rand = QRandomGenerator::global()->bounded(100000, 1000000);
-    int seq = nextSequenceNumber();
-    return prefix + timestamp + QString::number(rand) + QString("%1").arg(seq, 4, 10, QChar('0'));
-}
+// 生成事件编号: GE + yyyyMMdd + 6位自增序列号
+QString generateEventNo();
 
-// 生成服务订单编号: SV + yyyyMMddHHmmsszzz + 6位随机数 + 4位自增序列号
-inline QString generateServiceOrderNo() {
-    QString prefix = "SV";
-    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMddHHmmsszzz");
-    int rand = QRandomGenerator::global()->bounded(100000, 1000000);
-    int seq = nextSequenceNumber();
-    return prefix + timestamp + QString::number(rand) + QString("%1").arg(seq, 4, 10, QChar('0'));
-}
+// 生成服务订单编号: SV + yyyyMMdd + 6位自增序列号
+QString generateServiceOrderNo();
 
 // 手机号脱敏: 138****5678
 inline QString maskPhone(const QString& phone) {
@@ -147,33 +88,25 @@ inline QString generateSessionId() {
     return QUuid::createUuid().toString(QUuid::WithoutBraces);
 }
 
-// 简单可逆加密：使用固定种子派生密钥，对 UTF-8 字节做 XOR 后 Base64，并加 "enc:" 前缀
-inline QString simpleEncrypt(const QString& plaintext) {
-    if (plaintext.isEmpty())
-        return QString();
+// 本地敏感数据加密（如 API Key）。
+// Windows 使用 DPAPI 绑定当前用户会话；其他平台回退到基于随机安装密钥的混淆。
+// 返回格式: "encv2:" + Base64。
+QString secureEncrypt(const QString& plaintext);
 
-    static const QByteArray key = QCryptographicHash::hash(
-        QByteArrayLiteral("SmartCommunity_EncSeed_v1"),
-        QCryptographicHash::Sha256);
+// 解密 secureEncrypt 生成的密文。
+// 若密文格式不合法或解密失败，返回空字符串便于调用方识别。
+// 注意：非 "encv2:" 前缀的密文不在这里处理，请调用方按明文旧数据兼容。
+QString secureDecrypt(const QString& ciphertext);
 
-    QByteArray data = plaintext.toUtf8();
-    const int keyLen = key.size();
-    for (int i = 0; i < data.size(); ++i) {
-        data[i] = static_cast<char>(static_cast<quint8>(data[i]) ^
-                                    static_cast<quint8>(key[i % keyLen]));
-    }
-    return QStringLiteral("enc:") + QString::fromLatin1(data.toBase64());
-}
-
-// 解密 simpleEncrypt 生成的密文；非加密前缀的输入视为明文旧数据并原样返回；
-// 若密文格式不合法（如 Base64 解码失败），返回空字符串便于调用方识别。
+// 【已废弃，仅用于迁移旧版 "enc:" XOR 密文】
+// 读取旧版 simpleEncrypt 生成的密文；非 "enc:" 前缀返回原字符串。
+[[deprecated("仅用于兼容旧版加密数据，新代码请使用 secureDecrypt")]]
 inline QString simpleDecrypt(const QString& ciphertext) {
-    if (!ciphertext.startsWith(QStringLiteral("enc:")))
+    if (!ciphertext.startsWith(QStringLiteral("enc:")) || ciphertext.startsWith(QStringLiteral("encv2:")))
         return ciphertext;
 
     QByteArray data = QByteArray::fromBase64(ciphertext.mid(4).toLatin1());
-    if (data.isEmpty())
-        return QString();
+    if (data.isEmpty()) return QString();
 
     static const QByteArray key = QCryptographicHash::hash(
         QByteArrayLiteral("SmartCommunity_EncSeed_v1"),

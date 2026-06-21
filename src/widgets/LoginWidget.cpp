@@ -29,8 +29,8 @@ protected:
         bg.setColorAt(1, QColor("#001529"));
         p.fillRect(rect(), bg);
 
-        // 几何线条 — 模拟城市天际线/建筑轮廓
-        p.setPen(QPen(QColor(180, 83, 9, 25), 1));
+        // 几何线条 — 模拟城市天际线/建筑轮廓（alpha 从 25 提升到 40，常规显示器可见）
+        p.setPen(QPen(QColor(180, 83, 9, 40), 1));
         // 水平网格线
         for (int y = 60; y < height(); y += 40) {
             p.drawLine(0, y, width(), y);
@@ -86,6 +86,7 @@ protected:
         int fy = height() - 80;
         p.drawText(QRect(40, fy, width() - 80, 16), Qt::AlignLeft,
                    QStringLiteral("多角色协同  ·  流程闭环  ·  数据驱动"));
+        p.end();
     }
 };
 

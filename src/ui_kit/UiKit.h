@@ -28,6 +28,10 @@ extern const char* TABLE_STYLE;
 // 卡片阴影（Qt6 兼容占位，避免 QGraphicsDropShadowEffect 冲突）
 void applyCardShadow(QWidget* card);
 
+// 统计卡片（数值+标题+顶部色条），消除 6+ 处重复的 mkCard/createMiniCard lambda
+QFrame* createStatCard(const QString& label, const QString& value,
+                       const QString& color, QWidget* parent);
+
 // SVG 图标着色
 QPixmap tintSvgIcon(const QString& iconKey, const QString& color, const QSize& size);
 
@@ -57,6 +61,9 @@ QWidget* createActionCell(const QList<QPushButton*>& buttons, QWidget* parent = 
 // 表格操作文本项
 QTableWidgetItem* createActionItem(const QString& text, const QString& color,
                                    qint64 entityId, const QVariant& actionData = QVariant());
+
+// 统一表格配置：禁用行内编辑、设置常用选择行为等
+void configureTable(QTableWidget* table);
 
 // 空状态
 QWidget* createEmptyState(const QString& iconKey, const QString& message,

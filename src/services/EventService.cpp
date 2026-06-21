@@ -1,11 +1,13 @@
 #include "EventService.h"
 
+#include <QSqlError>
 #include <QSqlQuery>
 
 #include "database/DatabaseManager.h"
 #include "services/AuthService.h"
 #include "ui_kit/AuthHelpers.h"
 #include "ui_kit/DbHelpers.h"
+#include "ui_kit/PagedQuery.h"
 #include "utils/Utils.h"
 
 EventService& EventService::instance() {
@@ -36,47 +38,41 @@ QString operatorName() {
 EventService::EventListResult EventService::queryEvents(const EventQueryParams& params) {
     EventListResult result;
 
-    QString sql = QStringLiteral("SELECT %1 FROM ge_event WHERE del_flag = 0").arg(EVENT_COLUMNS);
+    QString baseSql = QStringLiteral("SELECT %1 FROM ge_event WHERE del_flag = 0").arg(EVENT_COLUMNS);
+    UiKit::PagedQuery pq(baseSql);
 
     // 数据权限过滤
     auto scopeFilter = UiKit::buildDataScopeFilter(QString(), QStringLiteral("community_org_id"));
-    sql += scopeFilter.first;
-
-    QVariantList bindPairs;
-    bindPairs.append(scopeFilter.second);
+    if (!scopeFilter.first.isEmpty())
+    {
+        QString scopeSql = scopeFilter.first.trimmed();
+        if (scopeSql.startsWith("AND", Qt::CaseInsensitive))
+            scopeSql = scopeSql.mid(3).trimmed();
+        QVariantMap scopeBinds;
+        for (int i = 0; i + 1 < scopeFilter.second.size(); i += 2)
+        {
+            QString key = scopeFilter.second[i].toString();
+            if (key.startsWith(":")) key = key.mid(1);
+            scopeBinds.insert(key, scopeFilter.second[i + 1]);
+        }
+        pq.where(scopeSql, scopeBinds);
+    }
 
     if (!params.keyword.isEmpty()) {
-        sql += " AND (event_no LIKE :search OR title LIKE :search)";
-        bindPairs << ":search" << ("%" + params.keyword + "%");
+        pq.where("(event_no LIKE :search OR title LIKE :search)", {{"search", "%" + params.keyword + "%"}});
     }
     if (params.statusFilter >= 0 && params.statusFilter < 7) {
-        sql += " AND status = :status";
-        bindPairs << ":status" << STATUS_FILTER_MAP[params.statusFilter];
+        pq.where("status = :status", {{"status", STATUS_FILTER_MAP[params.statusFilter]}});
     }
     if (params.onlyMine) {
-        sql += " AND assign_to = :myId";
-        bindPairs << ":myId" << AuthService::instance().currentUser().id;
+        pq.where("assign_to = :myId", {{"myId", AuthService::instance().currentUser().id}});
     }
-    sql += " ORDER BY create_time DESC";
-    sql += " LIMIT :pageSize OFFSET :offset";
-    bindPairs << ":pageSize" << params.pageSize
-              << ":offset" << params.offset;
+    pq.orderBy("create_time DESC");
 
-    // 总数
-    result.totalCount = UiKit::executeCountQuery(sql, bindPairs);
-
-    // 主查询
-    QSqlQuery q(DatabaseManager::instance().database());
-    q.prepare(sql);
-    for (int i = 0; i + 1 < bindPairs.size(); i += 2) {
-        q.bindValue(bindPairs[i].toString(), bindPairs[i + 1]);
-    }
-    if (!q.exec()) {
-        qWarning() << "queryEvents failed:" << q.lastError().text();
-        return result;
-    }
-    while (q.next()) {
-        result.items.append(GeEvent::fromQuery(q));
+    auto res = pq.execute(params.pageSize, params.offset);
+    result.totalCount = res.totalCount;
+    for (const auto& rec : res.rows) {
+        result.items.append(GeEvent::fromRecord(rec));
     }
     return result;
 }

@@ -16,7 +16,7 @@ find_package(Qt6 REQUIRED COMPONENTS
     Network
 )
 
-file(GLOB_RECURSE SOURCES
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
     "src/*.h"
 )
@@ -42,6 +42,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Charts
     Qt6::Network
 )
+
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Crypt32)
+endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src

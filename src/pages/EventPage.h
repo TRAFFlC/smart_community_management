@@ -9,7 +9,7 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 
-#include "models/Models.h"
+#include "models/GeModels.h"
 #include "widgets/PaginationBar.h"
 
 class EventPage : public BasePage {
@@ -21,9 +21,10 @@ private:
     void buildToolbar();
     void buildTable();
     void loadData();
+    void updateRow(int row, const GeEvent& ev);
+    void onNewEvent();
     void onEditEvent(qint64 eventId);
     void onActionEvent(qint64 eventId, int status);
-    void updateRow(int row, const GeEvent& ev);
 
     QVBoxLayout* m_layout = nullptr;
     QTableWidget* m_table = nullptr;

@@ -7,6 +7,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QFontDatabase>
+#include <memory>
 #include "database/DatabaseManager.h"
 #include "services/AuthService.h"
 #include "services/DemoDataService.h"
@@ -96,17 +97,16 @@ int main(int argc, char* argv[]) {
 
     // 创建登录窗口
     LoginWidget loginWidget;
-    MainWindow* mainWindow = nullptr;
+    std::unique_ptr<MainWindow> mainWindow;
 
     QObject::connect(&loginWidget, &LoginWidget::loginSuccess, [&]() {
         qDebug() << "Login successful, creating main window...";
         if (!mainWindow) {
-            mainWindow = new MainWindow();
-            QObject::connect(mainWindow, &MainWindow::logoutRequested, [&]() {
+            mainWindow = std::make_unique<MainWindow>();
+            QObject::connect(mainWindow.get(), &MainWindow::logoutRequested, [&]() {
                 AuthService::instance().logout();
                 mainWindow->close();
-                delete mainWindow;
-                mainWindow = nullptr;
+                mainWindow.reset();
                 loginWidget.show();
             });
         }
@@ -118,8 +118,6 @@ int main(int argc, char* argv[]) {
 
     int result = app.exec();
 
-    // 清理
-    if (mainWindow) delete mainWindow;
     db.close();
 
     qDebug() << "Application exited with code:" << result;

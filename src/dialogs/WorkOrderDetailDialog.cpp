@@ -2,6 +2,7 @@
 
 #include "../database/DatabaseManager.h"
 #include "../models/Constants.h"
+#include "../ui_kit/UiKit.h"
 
 #include <QDateTime>
 #include <QFile>
@@ -20,7 +21,7 @@ void WorkOrderDetailDialog::show(QWidget* parent, qint64 workOrderId) {
     if (workOrderId <= 0) return;
 
     QSqlQuery q(DatabaseManager::instance().database());
-    q.prepare("SELECT id, order_no, title, order_type, priority, status, reporter_name, "
+    q.prepare("SELECT id, order_no, title, order_type, priority, status, reporter_id, reporter_name, "
               "reporter_phone, description, location_desc, create_time, accept_time, "
               "assign_to, assign_time, finish_time, close_time, result_desc, images "
               "FROM wo_work_order WHERE id = :id AND del_flag = 0");
@@ -35,18 +36,19 @@ void WorkOrderDetailDialog::show(QWidget* parent, qint64 workOrderId) {
     int orderType = q.value(3).toInt();
     int priority = q.value(4).toInt();
     int status = q.value(5).toInt();
-    QString reporterName = q.value(6).toString();
-    QString reporterPhone = q.value(7).toString();
-    QString description = q.value(8).toString();
-    QString locationDesc = q.value(9).toString();
-    QDateTime createTime = q.value(10).toDateTime();
-    QDateTime acceptTime = q.value(11).toDateTime();
-    qint64 assignTo = q.value(12).toLongLong();
-    QDateTime assignTime = q.value(13).toDateTime();
-    QDateTime finishTime = q.value(14).toDateTime();
-    QDateTime closeTime = q.value(15).toDateTime();
-    QString resultDesc = q.value(16).toString();
-    QString imagesStr = q.value(17).toString();
+    qint64 reporterId = q.value(6).toLongLong();
+    QString reporterName = q.value(7).toString();
+    QString reporterPhone = q.value(8).toString();
+    QString description = q.value(9).toString();
+    QString locationDesc = q.value(10).toString();
+    QDateTime createTime = q.value(11).toDateTime();
+    QDateTime acceptTime = q.value(12).toDateTime();
+    qint64 assignTo = q.value(13).toLongLong();
+    QDateTime assignTime = q.value(14).toDateTime();
+    QDateTime finishTime = q.value(15).toDateTime();
+    QDateTime closeTime = q.value(16).toDateTime();
+    QString resultDesc = q.value(17).toString();
+    QString imagesStr = q.value(18).toString();
 
     QString assigneeName;
     if (assignTo > 0) {
@@ -316,6 +318,10 @@ void WorkOrderDetailDialog::show(QWidget* parent, qint64 workOrderId) {
     dlgLayout->addStretch();
     auto* btnRow = new QHBoxLayout();
     btnRow->addStretch();
+
+    // 根据当前状态和权限显示操作按钮
+    WorkOrderDetailActions::setupActionButtons(dlg, btnRow, workOrderId, status, reporterId, assignTo, title);
+
     auto* closeBtn = new QPushButton(QStringLiteral("关闭"), &dlg);
     closeBtn->setProperty("cssClass", "primary");
     closeBtn->setCursor(Qt::PointingHandCursor);

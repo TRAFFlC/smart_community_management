@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>style.qss</file>
+        <file alias="schema.sql">../sql/schema.sql</file>
         <file>app.svg</file>
         <file>icons/ic_dashboard.svg</file>
         <file>icons/ic_todo.svg</file>

@@ -21,14 +21,7 @@ bool currentUserHasRoleKey(const QStringList& roleKeys) {
     if (user.permissions.contains("*:*:*")) return true; // 超级管理员
     if (roleKeys.isEmpty()) return true;
 
-    QSqlQuery q(DatabaseManager::instance().database());
-    q.prepare("SELECT r.role_key FROM sys_role r "
-              "JOIN sys_user_role ur ON r.id = ur.role_id "
-              "WHERE ur.user_id = :uid AND r.status = 0 AND r.del_flag = 0");
-    q.bindValue(":uid", user.id);
-    q.exec();
-    QSet<QString> userRoleKeys;
-    while (q.next()) userRoleKeys.insert(q.value(0).toString());
+    const QSet<QString> userRoleKeys(user.roleKeys.begin(), user.roleKeys.end());
     for (const auto& key : roleKeys) {
         if (userRoleKeys.contains(key)) return true;
     }
@@ -118,11 +111,14 @@ QPair<QString, QVariantList> buildDataScopeFilter(const QString& tableAlias, con
     QVariantList binds;
     if (orgColumn == QStringLiteral("estate_id")) {
         QSqlQuery estateQ(DatabaseManager::instance().database());
-        QString placeholders = QStringList(orgIds.size(), QStringLiteral("?")).join(QStringLiteral(","));
+        QStringList orgPhList;
+        for (int i = 0; i < orgIds.size(); ++i) {
+            orgPhList << QStringLiteral(":scope_orgid_%1").arg(i);
+        }
         estateQ.prepare(QStringLiteral("SELECT DISTINCT e.id FROM cm_estate e "
                                        "LEFT JOIN sys_org o ON e.org_id = o.id "
-                                       "WHERE o.id IN (%1) AND e.del_flag = 0").arg(placeholders));
-        for (int i = 0; i < orgIds.size(); ++i) estateQ.bindValue(i, orgIds[i]);
+                                       "WHERE o.id IN (%1) AND e.del_flag = 0").arg(orgPhList.join(QStringLiteral(","))));
+        for (int i = 0; i < orgIds.size(); ++i) estateQ.bindValue(orgPhList.at(i), orgIds[i]);
         estateQ.exec();
 
         QList<qint64> estateIds;
